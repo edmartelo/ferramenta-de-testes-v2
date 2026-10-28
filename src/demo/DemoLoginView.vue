@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onUnmounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
+import AppCredit from '../components/AppCredit.vue';
 import PasswordField from '../components/PasswordField.vue';
 import TotpCodeInput from '../components/TotpCodeInput.vue';
 import { authState, loadAuthState } from '../auth-state';
@@ -231,6 +232,7 @@ async function signup() {
       <p v-if="googleCredential && submitting" class="hint google-status">Entrando com o Google...</p>
       <button type="button" class="link-button privacy-link" @click="privacyOpen = true">Política de privacidade</button>
     </div>
+    <AppCredit />
 
     <div v-if="privacyOpen" class="modal-backdrop" @click.self="privacyOpen = false" @keydown.esc="privacyOpen = false">
       <div ref="privacyDialog" class="card modal-card privacy-modal" role="dialog" aria-modal="true" aria-labelledby="privacy-modal-title">

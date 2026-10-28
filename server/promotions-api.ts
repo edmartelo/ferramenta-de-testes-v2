@@ -4,11 +4,12 @@ import { isAbsolute } from 'node:path';
 import type { Plugin } from 'vite';
 import { AGENCIES, OTHER_AGENCY_ID, isAgencyId } from '../knowledge-base/agencies/index.ts';
 import { MASS_REGISTRATION_GROUPS, MASS_REGISTRATION_LIMITS } from '../knowledge-base/test-groups.ts';
-import { deletePromotion, listPromotions, promotionExists, readPromotion, writePromotion } from '../promotions/index.ts';
+import { deletePromotion, listPromotions, PromotionConflictError, promotionExists, readPromotionForUpdate, writePromotion } from '../promotions/index.ts';
 import { PROMOTION_STAGES, type EnvKey, type PromotionConfig, type PromotionStage } from '../promotions/types.ts';
 import { testGroups, runAdminPanelLoginStreaming, runTestSuiteStreaming } from './test-runner.ts';
 
 import { promotionDir } from '../src/lib/paths.ts';
+import { slugify } from '../src/lib/slug.ts';
 import { MASS_QUANTITY_ENV } from '../src/lib/test-constants.ts';
 import { existingAdminPanelSessionPath, readPromotionCredentials as readPanelCredentials, writePromotionCredentials as writePanelCredentials, type PromotionCredentials } from '../src/lib/promotion-credentials.ts';
 import { getAuthenticatedRole, handleAuthRoute, handleUsersRoute, requireAuth } from './auth.ts';
@@ -19,6 +20,7 @@ import { startSharedDbKeepAlive } from './aiven-power.ts';
 import { handleLearningRoute } from './learning-api.ts';
 import { handleLogsRoute } from './logs.ts';
 import { handleRecurrencesRoute } from './recurrences-api.ts';
+import { startLocalHousekeeping } from './local-housekeeping.ts';
 import { startRecurrencesScheduler } from './recurrences-schedule.ts';
 import { createTestRunRecorder, deleteTestRuns, isManualChecks, readLastTestRun, saveManualChecks } from './test-runs.ts';
 import { BadRequestError, isCrossOriginWrite, readJsonBody, sendJson } from './http-utils.ts';
@@ -30,14 +32,6 @@ const ENV_LABEL: Record<UiEnv, string> = { dev: 'Dev', homolog: 'Homolog', produ
 
 function parseUiEnv(value: unknown): UiEnv | undefined {
   return value === 'dev' || value === 'homolog' || value === 'producao' ? value : undefined;
-}
-
-function slugify(text: string): string {
-  return text
-    .normalize('NFD').replace(/[̀-ͯ]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
 }
 
 /** Pasta que sobrou (credenciais, sessão do painel) também ocupa o slug, senão a nova promoção herdaria esses arquivos. */
@@ -95,6 +89,8 @@ interface PromotionRouteContext {
   res: ServerResponse;
   id: string;
   promotion: PromotionConfig;
+  /** Grava `promotion` só se ninguém gravou desde a leitura. */
+  save: () => Promise<void>;
   /** Tester roda testes e vê resultados; credenciais, pastas e exclusão são do Master. */
   master: boolean;
 }
@@ -102,7 +98,7 @@ interface PromotionRouteContext {
 type PromotionRoute = (ctx: PromotionRouteContext) => unknown;
 
 function putEnvironment(env: UiEnv): PromotionRoute {
-  return async ({ req, res, id, promotion, master }) => {
+  return async ({ req, res, id, promotion, save, master }) => {
     const body = await readJsonBody(req);
     if (env === 'dev' && master) {
       const paths = { backend: String(body.backend ?? '').trim(), frontend: String(body.frontend ?? '').trim() };
@@ -112,7 +108,7 @@ function putEnvironment(env: UiEnv): PromotionRoute {
       promotion.paths = paths;
     }
     applyEnvironmentFields(promotion, id, env, body, master);
-    await writePromotion(promotion);
+    await save();
     return sendJson(res, 200, promotion);
   };
 }
@@ -153,7 +149,7 @@ const PROMOTION_ROUTES: Record<string, PromotionRoute> = {
   'PUT homolog': putEnvironment('homolog'),
   'PUT producao': putEnvironment('producao'),
 
-  'PUT mechanics-rules': async ({ req, res, id, promotion }) => {
+  'PUT mechanics-rules': async ({ req, res, id, promotion, save }) => {
     const body = await readJsonBody(req);
     // As perguntas sim/não saíram do card; valores já salvos continuam valendo nos testes.
     const { allowMultipleCpf, allowMultipleEmail, allowMultiplePhone, participatingStoreCnpjs } = promotion.mechanicsRules ?? {};
@@ -167,19 +163,19 @@ const PROMOTION_ROUTES: Record<string, PromotionRoute> = {
       maxCouponsTotal: optionalNumber(body.maxCouponsTotal),
       minProductsPerCoupon: optionalNumber(body.minProductsPerCoupon),
     };
-    await writePromotion(promotion);
+    await save();
     return sendJson(res, 200, promotion);
   },
 
-  'PUT stage': async ({ req, res, promotion }) => {
+  'PUT stage': async ({ req, res, promotion, save }) => {
     const { stage } = await readJsonBody(req);
     if (!PROMOTION_STAGES.includes(stage as PromotionStage)) return sendJson(res, 400, { error: 'stage deve ser testing, live ou closed.' });
     promotion.stage = stage as PromotionStage;
-    await writePromotion(promotion);
+    await save();
     return sendJson(res, 200, { stage });
   },
 
-  'PUT manual-tests': async ({ req, res, id, promotion }) => {
+  'PUT manual-tests': async ({ req, res, id, promotion, save }) => {
     const body = await readJsonBody(req);
     const env = parseUiEnv(body.env);
     const configKey = env && env !== 'dev' ? ENV_TO_CONFIG_KEY[env] : undefined;
@@ -187,7 +183,7 @@ const PROMOTION_ROUTES: Record<string, PromotionRoute> = {
       return sendJson(res, 400, { error: 'Informe o ambiente (homolog/producao) e a lista de itens marcados.' });
     }
     promotion.manualTestChecks = { ...promotion.manualTestChecks, [configKey]: body.checked };
-    await writePromotion(promotion);
+    await save();
     return sendJson(res, 200, promotion);
   },
 
@@ -288,6 +284,7 @@ export function promotionsApiPlugin(): Plugin {
       db().catch((error: Error) => server.config.logger.error(`\n  ${error.message}\n`));
       startRecurrencesScheduler((message) => server.config.logger.error(`\n  ${message}\n`));
       startSharedDbKeepAlive((message) => server.config.logger.error(`\n  ${message}\n`));
+      startLocalHousekeeping((message) => server.config.logger.error(`\n  ${message}\n`));
 
       server.middlewares.use(async (req, res, next) => {
         if (!req.url?.startsWith('/api/')) return next();
@@ -362,16 +359,18 @@ export function promotionsApiPlugin(): Plugin {
             : undefined;
           if (route) {
             const id = parts[2]!;
-            const promotion = await readPromotion(id);
-            if (!promotion) return sendJson(res, 404, { error: `Promoção "${id}" não encontrada.` });
-            await route({ req, res, id, promotion, master: getAuthenticatedRole(req) === 'master' });
+            const found = await readPromotionForUpdate(id);
+            if (!found) return sendJson(res, 404, { error: `Promoção "${id}" não encontrada.` });
+            const { promotion, version } = found;
+            await route({ req, res, id, promotion, save: () => writePromotion(promotion, version), master: getAuthenticatedRole(req) === 'master' });
             return;
           }
 
           return sendJson(res, 404, { error: 'Rota de API desconhecida.' });
         } catch (error) {
           if (res.headersSent) return void res.end();
-          return sendJson(res, error instanceof BadRequestError ? 400 : 500, { error: error instanceof Error ? error.message : String(error) });
+          const status = error instanceof BadRequestError ? 400 : error instanceof PromotionConflictError ? 409 : 500;
+          return sendJson(res, status, { error: error instanceof Error ? error.message : String(error) });
         }
       });
     },

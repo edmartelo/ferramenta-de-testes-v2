@@ -879,6 +879,8 @@ button.manual-action.queued.sent {
   min-height: 100dvh;
   padding: 16px;
   display: flex;
+  flex-direction: column;
+  gap: 16px;
   align-items: center;
   justify-content: center;
 }

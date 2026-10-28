@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { join } from 'node:path';
 import { readJsonFile, writeJsonFile } from '../src/lib/json-file.ts';
+import { createLimiter } from '../src/lib/limiter.ts';
 import { PROJECT_ROOT } from '../src/lib/paths.ts';
 import { rootEnv } from '../src/lib/root-env.ts';
 import {
@@ -25,7 +26,8 @@ import {
 } from './atendimento-labels.ts';
 import { maskPersonalData } from './personal-data.ts';
 import { siteRoute } from '../src/lib/site-url.ts';
-import { scannedPromotionPanels, scannedRegistrationLines, type Atendimento } from './test-runner.ts';
+import type { Atendimento } from './atendimentos-scan.ts';
+import { scannedPromotionPanels, scannedRegistrationLines } from './recurrences-scan.ts';
 
 export { SEVERITIES, type Severity };
 
@@ -540,10 +542,25 @@ function isAwaitingTeam(item: Atendimento): boolean {
   return normalize(item.status).replace(/\s+/g, ' ').trim() === 'aguardando resposta do atendimento';
 }
 
-export async function summarizeAtendimentos(
+/** O Ollama carrega um modelo de ~11 GB e responde um pedido por vez: resumo manual e agendado esperam a vez. Em globalThis pelo restart do Vite. */
+const ollamaQueue: ReturnType<typeof createLimiter> = ((globalThis as unknown as { __ollamaSummaryQueue?: ReturnType<typeof createLimiter> }).__ollamaSummaryQueue ??= createLimiter(1));
+
+export function summarizeAtendimentos(
   promotionName: string,
   scanned: Atendimento[],
   onProgress: (percent: number) => void = () => {},
+  signal?: AbortSignal,
+): Promise<AtendimentosSummary> {
+  return ollamaQueue.run(async () => {
+    signal?.throwIfAborted();
+    return summarizeNow(promotionName, scanned, onProgress, signal);
+  });
+}
+
+async function summarizeNow(
+  promotionName: string,
+  scanned: Atendimento[],
+  onProgress: (percent: number) => void,
   signal?: AbortSignal,
 ): Promise<AtendimentosSummary> {
   const items = scanned.filter(isAwaitingTeam);

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppCredit from '../components/AppCredit.vue';
 import PrivacyPolicy from './PrivacyPolicy.vue';
 
 /** Página pública da demo, sem login: é o link de política de privacidade cadastrado no Google. */
@@ -12,6 +13,7 @@ import PrivacyPolicy from './PrivacyPolicy.vue';
       <PrivacyPolicy />
       <router-link to="/login" class="back-link">Voltar para o login</router-link>
     </article>
+    <AppCredit />
   </div>
 </template>
 
@@ -19,7 +21,9 @@ import PrivacyPolicy from './PrivacyPolicy.vue';
 .privacy-page {
   padding: 32px 16px;
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
 }
 
 .privacy-card {

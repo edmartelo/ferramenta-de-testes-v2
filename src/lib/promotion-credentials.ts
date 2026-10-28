@@ -3,6 +3,7 @@ import { dirname, join } from 'node:path';
 import type { EnvKey } from '../../promotions/types.ts';
 import { readJsonFile, writeJsonFile } from './json-file.ts';
 import { promotionDir } from './paths.ts';
+import { decryptFields, encryptFields, hasPlainField } from './secret-box.ts';
 
 export interface PromotionCredentials {
   adminPanelUser?: string;
@@ -21,17 +22,38 @@ function credentialsPath(id: string): string {
   return join(promotionDir(id), '.credentials.json');
 }
 
-export function readPromotionCredentials(id: string): PromotionCredentialsFile {
+/** Cifrados no arquivo com a `TOTP_ENCRYPTION_KEY`: senha e chave do autenticador juntas abririam o painel de produção. */
+const SECRET_FIELDS = ['adminPanelPassword', 'adminPanelTotpSecret', 'testParticipantPassword', 'recaptchaSecretKey'] as const;
+
+function mapEnvs(all: PromotionCredentialsFile, map: (credentials: PromotionCredentials) => PromotionCredentials): PromotionCredentialsFile {
+  return Object.fromEntries(Object.entries(all).map(([env, credentials]) => [env, map(credentials)]));
+}
+
+function readStoredCredentials(id: string): PromotionCredentialsFile {
   return readJsonFile<PromotionCredentialsFile>(credentialsPath(id), {});
 }
 
-export function writePromotionCredentials(id: string, env: EnvKey, updates: PromotionCredentials): void {
-  const all = readPromotionCredentials(id);
-  all[env] = { ...all[env], ...updates };
+function writeStoredCredentials(id: string, all: PromotionCredentialsFile): void {
   const path = credentialsPath(id);
   // Promoção criada em outra máquina ainda não tem pasta nesta.
   mkdirSync(dirname(path), { recursive: true });
-  writeJsonFile(path, all);
+  writeJsonFile(path, mapEnvs(all, (credentials) => encryptFields(credentials, SECRET_FIELDS)));
+}
+
+export function readPromotionCredentials(id: string): PromotionCredentialsFile {
+  return mapEnvs(readStoredCredentials(id), (credentials) => decryptFields(credentials, SECRET_FIELDS));
+}
+
+export function writePromotionCredentials(id: string, env: EnvKey, updates: PromotionCredentials): void {
+  const all = readStoredCredentials(id);
+  all[env] = { ...all[env], ...updates };
+  writeStoredCredentials(id, all);
+}
+
+/** Arquivo gravado antes da cifra: regrava cifrado. Só o servidor chama, os processos do Playwright só leem. */
+export function encryptStoredCredentials(id: string): void {
+  const all = readStoredCredentials(id);
+  if (Object.values(all).some((credentials) => credentials && hasPlainField(credentials, SECRET_FIELDS))) writeStoredCredentials(id, all);
 }
 
 /** Com as duas chaves no Dev o projeto local sobe com reCAPTCHA ligado; só as chaves de teste do Google passam sem desafio. */

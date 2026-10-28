@@ -6,7 +6,7 @@ import { siteRoute } from '../lib/site-url';
 import PromotionPickerModal from '../components/PromotionPickerModal.vue';
 import SlackSendModal from '../components/SlackSendModal.vue';
 import TotpCodeModal from '../components/TotpCodeModal.vue';
-import { hasAtendimentos } from '../../server/atendimentos-panels';
+import { hasAtendimentos } from '../lib/atendimentos-panels';
 import { api, type Atendimento, type AtendimentosSummary, type RecurrencesPromotionResult } from '../api';
 import { useTotpGate } from '../composables/useTotpGate';
 import { errorMessage, safeHttpUrl } from '../composables/utils';

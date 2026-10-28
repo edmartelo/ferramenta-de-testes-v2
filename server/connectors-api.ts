@@ -1,62 +1,11 @@
 import { randomBytes } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { join } from 'node:path';
 import { getAuthenticatedUserId } from './auth.ts';
 import { readJsonBody, sendJson } from './http-utils.ts';
 import { LOG_SOURCES, recordLog, type LogSource } from './logs.ts';
-import { readJsonFile, writeJsonFile } from '../src/lib/json-file.ts';
-import { PROJECT_ROOT } from '../src/lib/paths.ts';
 import { rootEnv } from '../src/lib/root-env.ts';
 import { generateTotpCode } from '../src/lib/totp.ts';
-
-const CONNECTORS_FILE_PATH = join(PROJECT_ROOT, '.connectors.json');
-
-interface MondayConnection {
-  accessToken: string;
-  accountName?: string;
-  connectedAt: string;
-}
-
-export interface PromoMonitorConnection {
-  email: string;
-  password: string;
-  totpSecret?: string;
-  /** Hostname → chave do Authenticator, pros painéis com 2FA próprio (não o do Monitor). */
-  panelTotpSecrets?: Record<string, string>;
-  connectedAt: string;
-}
-
-interface SlackConnection {
-  accessToken: string;
-  teamName?: string;
-  connectedAt: string;
-}
-
-interface UserConnectors {
-  monday?: MondayConnection;
-  promoMonitor?: PromoMonitorConnection;
-  slack?: SlackConnection;
-}
-
-function readConnectorsFile(): Record<string, UserConnectors> {
-  return readJsonFile<Record<string, UserConnectors>>(CONNECTORS_FILE_PATH, {});
-}
-
-function getUserConnectors(userId: string): UserConnectors {
-  return readConnectorsFile()[userId] ?? {};
-}
-
-/** `undefined` no patch desconecta aquele conector. */
-function updateUserConnectors(userId: string, patch: UserConnectors): void {
-  const all = readConnectorsFile();
-  if (!all[userId] && Object.values(patch).every((value) => value === undefined)) return;
-  all[userId] = { ...all[userId], ...patch };
-  writeJsonFile(CONNECTORS_FILE_PATH, all);
-}
-
-export function getPromoMonitorConnection(userId: string): PromoMonitorConnection | undefined {
-  return getUserConnectors(userId).promoMonitor;
-}
+import { getUserConnectors, updateUserConnectors } from './connectors-store.ts';
 
 // `state` do OAuth (anti-CSRF).
 const PENDING_STATE_TTL_MS = 5 * 60 * 1000;

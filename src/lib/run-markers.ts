@@ -1,4 +1,4 @@
-/** Prefixos de stdout lidos por server/test-runner.ts; ambos os lados importam daqui. */
+/** Prefixos de stdout lidos pelos jobs do servidor (test-runner, recurrences-scan, atendimentos-scan); ambos os lados importam daqui. */
 export const RUN_MARKERS = {
   testProgress: '##TEST_PROGRESS##',
   adminPanelLoginError: '##ADMIN_PANEL_LOGIN_ERROR##',

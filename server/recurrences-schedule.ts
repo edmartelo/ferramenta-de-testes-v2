@@ -4,9 +4,10 @@ import { readJsonFile, writeJsonFile } from '../src/lib/json-file.ts';
 import { PROJECT_ROOT } from '../src/lib/paths.ts';
 import { ensureSharedDbRunning } from './aiven-power.ts';
 import { rememberSummary, summarizeAtendimentos, summaryWhatsAppLines } from './atendimentos-summary.ts';
-import { getPromoMonitorConnection } from './connectors-api.ts';
+import { runAtendimentosScanJob } from './atendimentos-scan.ts';
+import { getPromoMonitorConnection } from './connectors-store.ts';
 import { durationDetail, promotionsScanDetails, recordLog, type LogDetails } from './logs.ts';
-import { runAtendimentosScanJob, runRecurrencesScanJob, scannedPromotionPanels, sendRecurrencesWhatsApp } from './test-runner.ts';
+import { runRecurrencesScanJob, scannedPromotionPanels, sendRecurrencesWhatsApp } from './recurrences-scan.ts';
 
 export const SCHEDULE_SLOTS = ['10:00', '14:00', '18:00', '21:00'];
 /** Por máquina, fora do banco: cada pessoa liga a automação no próprio `npm run dev`. */
@@ -106,7 +107,7 @@ function slotTime(now: Date, slot: string): number {
 }
 
 function shortError(error: string): string {
-  return error.split('\n')[0].slice(0, 300);
+  return (error.split('\n')[0] ?? '').slice(0, 300);
 }
 
 async function tick(): Promise<void> {
@@ -227,26 +228,15 @@ async function notify(message: string[] | undefined, appendix: string[] = []): P
   return error && shortError(error);
 }
 
-/** Cada coleta abre um Chromium, na mesma máquina que roda o Ollama. */
-const ATENDIMENTOS_SCAN_CONCURRENCY = 2;
-
-/** Coleta atendimentos de todo painel com concorrência limitada e resume um por vez (Ollama é serial); falha vira linha de aviso. */
+/** Coleta atendimentos de todo painel (a fila de coletas e a do Ollama ficam no servidor); falha vira linha de aviso. */
 async function atendimentosSummaryAppendix(
   connection: NonNullable<ReturnType<typeof getPromoMonitorConnection>>,
 ): Promise<{ lines: string[]; panels: number; failedPromotions: string[] }> {
   const targets = scannedPromotionPanels();
-  const scanTarget = async (target: (typeof targets)[number]) => {
-    const scan = runAtendimentosScanJob(connection, target);
-    return { target, result: scan ? await scan : { success: false as const, error: 'já havia uma coleta em andamento' } };
-  };
-  const scans: Awaited<ReturnType<typeof scanTarget>>[] = [];
-  let next = 0;
-  await Promise.all(
-    Array.from({ length: Math.min(ATENDIMENTOS_SCAN_CONCURRENCY, targets.length) }, async () => {
-      while (next < targets.length) {
-        const index = next++;
-        scans[index] = await scanTarget(targets[index]);
-      }
+  const scans = await Promise.all(
+    targets.map(async (target) => {
+      const scan = runAtendimentosScanJob(connection, target);
+      return { target, result: scan ? await scan : { success: false as const, error: 'já havia uma coleta em andamento' } };
     }),
   );
   const summarized: string[] = [];

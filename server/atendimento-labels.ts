@@ -5,7 +5,7 @@ import { db } from '../src/lib/db.ts';
 import { readJsonFile } from '../src/lib/json-file.ts';
 import { PROJECT_ROOT } from '../src/lib/paths.ts';
 import { maskPersonalData } from './personal-data.ts';
-import type { Atendimento } from './test-runner.ts';
+import type { Atendimento } from './atendimentos-scan.ts';
 
 export const SEVERITIES = ['critica', 'alta', 'media', 'baixa', 'externo'] as const;
 export type Severity = (typeof SEVERITIES)[number];

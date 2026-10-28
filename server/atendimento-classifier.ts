@@ -2,12 +2,13 @@ import { createHash } from 'node:crypto';
 import { join } from 'node:path';
 import { readJsonFile, writeFileAtomic } from '../src/lib/json-file.ts';
 import { PROJECT_ROOT } from '../src/lib/paths.ts';
+import { requireLoopbackUrl } from '../src/lib/loopback-url.ts';
 import { rootEnv } from '../src/lib/root-env.ts';
 import { countBySeverity, SEVERITIES, type AtendimentoLabel, type Severity } from './atendimento-labels.ts';
 import { maskPersonalData } from './personal-data.ts';
-import type { Atendimento } from './test-runner.ts';
+import type { Atendimento } from './atendimentos-scan.ts';
 
-export const OLLAMA_URL = rootEnv('OLLAMA_URL') ?? 'http://127.0.0.1:11434';
+export const OLLAMA_URL = requireLoopbackUrl(rootEnv('OLLAMA_URL') ?? 'http://127.0.0.1:11434', 'OLLAMA_URL');
 const EMBED_MODEL = rootEnv('OLLAMA_EMBED_MODEL') ?? 'nomic-embed-text';
 const EMBED_TIMEOUT_MS = 5 * 60 * 1000;
 /** Mantém o modelo entre os resumos de um mesmo horário agendado e libera a RAM (~11 GB) até o próximo; recarregar leva ~1 min. */

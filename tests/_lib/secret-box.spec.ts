@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import { test, expect } from '@playwright/test';
-import { decryptSecret, encryptSecret, isEncryptedSecret } from '../../src/lib/secret-box';
+import { decryptFields, decryptSecret, encryptFields, encryptSecret, hasPlainField, isEncryptedSecret } from '../../src/lib/secret-box';
 
 test.describe('encryptSecret / decryptSecret', () => {
   const original = process.env.TOTP_ENCRYPTION_KEY;
@@ -45,5 +45,18 @@ test.describe('encryptSecret / decryptSecret', () => {
     expect(() => encryptSecret('x')).toThrow(/TOTP_ENCRYPTION_KEY/);
     process.env.TOTP_ENCRYPTION_KEY = randomBytes(16).toString('base64');
     expect(() => encryptSecret('x')).toThrow(/TOTP_ENCRYPTION_KEY/);
+  });
+
+  test('encryptFields cifra só os campos listados, sem cifrar duas vezes', () => {
+    const plain = { user: 'admin@exemplo.com', password: 'senha', totp: 'JBSWY3DPEHPK3PXP', empty: '' };
+    const keys = ['password', 'totp', 'empty'] as const;
+    expect(hasPlainField(plain, keys)).toBe(true);
+    const sealed = encryptFields(plain, keys);
+    expect(sealed.user).toBe(plain.user);
+    expect(sealed.empty).toBe('');
+    expect(isEncryptedSecret(sealed.password)).toBe(true);
+    expect(hasPlainField(sealed, keys)).toBe(false);
+    expect(encryptFields(sealed, keys)).toEqual(sealed);
+    expect(decryptFields(sealed, keys)).toEqual(plain);
   });
 });

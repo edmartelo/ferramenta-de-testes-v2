@@ -1,7 +1,7 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import awsCaBundle from 'aws-ssl-profiles';
-import mysql, { type Pool, type RowDataPacket } from 'mysql2/promise';
+import mysql, { type Pool, type PoolConnection, type RowDataPacket } from 'mysql2/promise';
 import { readJsonFile } from './json-file.ts';
 import { PROJECT_ROOT, PROMOTIONS_ROOT, promotionDir } from './paths.ts';
 import { rootEnv } from './root-env.ts';
@@ -116,8 +116,8 @@ export function jsonValue<T>(value: unknown): T {
   return (typeof value === 'string' ? JSON.parse(value) : value) as T;
 }
 
-/** Importa os `promotions/<slug>/promotion.json` antigos só enquanto a tabela estiver vazia. */
-async function importLegacyPromotionFiles(pool: Pool): Promise<void> {
+/** Importa os `promotions/<slug>/promotion.json` antigos com a tabela vazia, só na migração 1: depois, promoção apagada não volta. */
+async function importLegacyPromotionFiles(pool: PoolConnection): Promise<void> {
   const [rows] = await pool.query<RowDataPacket[]>('SELECT 1 FROM promotions LIMIT 1');
   if (rows.length || !existsSync(PROMOTIONS_ROOT)) return;
   const values = readdirSync(PROMOTIONS_ROOT, { withFileTypes: true })
@@ -130,7 +130,7 @@ async function importLegacyPromotionFiles(pool: Pool): Promise<void> {
 }
 
 /** Tabela criada antes dos níveis de acesso: quem já tinha login vira Master e o link de cadastro sai. */
-async function addUserRoleColumns(pool: Pool): Promise<void> {
+async function addUserRoleColumns(pool: PoolConnection): Promise<void> {
   const [columns] = await pool.query<RowDataPacket[]>(
     "SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' AND COLUMN_NAME = 'role'",
   );
@@ -146,7 +146,7 @@ async function addUserRoleColumns(pool: Pool): Promise<void> {
 }
 
 /** `CREATE TABLE IF NOT EXISTS` não mexe em tabela que já existe: coluna nova entra por aqui. */
-async function addColumnIfMissing(pool: Pool, table: string, column: string, definition: string): Promise<void> {
+async function addColumnIfMissing(pool: PoolConnection, table: string, column: string, definition: string): Promise<void> {
   const [columns] = await pool.query<RowDataPacket[]>(
     'SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?',
     [table, column],
@@ -160,25 +160,80 @@ async function addColumnIfMissing(pool: Pool, table: string, column: string, def
 }
 
 /** Segredo do TOTP cifrado não cabe nos 64 caracteres da coluna original. */
-async function widenTotpSecretColumn(pool: Pool): Promise<void> {
+async function widenTotpSecretColumn(pool: PoolConnection): Promise<void> {
   const [rows] = await pool.query<RowDataPacket[]>(
     "SELECT CHARACTER_MAXIMUM_LENGTH AS size FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' AND COLUMN_NAME = 'totp_secret'",
   );
   if (rows[0] && Number(rows[0].size) < 255) await pool.query('ALTER TABLE users MODIFY totp_secret VARCHAR(255) NOT NULL');
 }
 
+type Migration = (connection: PoolConnection) => Promise<void>;
+
+/**
+ * Versão N do schema = MIGRATIONS[N - 1]; a versão do banco fica em `settings.schema_version`.
+ * Só acrescente no fim e mantenha cada passo idempotente: a 1 é o schema que existia antes da versão.
+ */
+const MIGRATIONS: Migration[] = [
+  async (connection) => {
+    for (const statement of SCHEMA) await connection.query(statement);
+    // Tabelas das Rodadas remotas, que saíram da ferramenta.
+    await connection.query('DROP TABLE IF EXISTS remote_runs, remote_executors, remote_promotions');
+    await addUserRoleColumns(connection);
+    await addColumnIfMissing(connection, 'users', 'totp_last_step', 'BIGINT NULL');
+    await widenTotpSecretColumn(connection);
+    await importLegacyPromotionFiles(connection);
+  },
+  // Duas máquinas: gravação de promoção com versão e rodada identificada.
+  async (connection) => {
+    await addColumnIfMissing(connection, 'promotions', 'version', 'INT NOT NULL DEFAULT 0');
+    await addColumnIfMissing(connection, 'test_runs', 'run_id', 'VARCHAR(32) NULL');
+  },
+];
+
+async function schemaVersion(connection: PoolConnection): Promise<number> {
+  try {
+    const [rows] = await connection.query<RowDataPacket[]>("SELECT value FROM settings WHERE name = 'schema_version'");
+    return Number(rows[0]?.value ?? 0);
+  } catch (error) {
+    if ((error as { code?: string }).code === 'ER_NO_SUCH_TABLE') return 0;
+    throw error;
+  }
+}
+
+class SchemaTooNewError extends Error {}
+
+/** Lock por nome no MySQL: duas máquinas subindo juntas não aplicam a mesma migração duas vezes. */
+async function migrate(): Promise<void> {
+  const connection = await pool.getConnection();
+  try {
+    if ((await schemaVersion(connection)) === MIGRATIONS.length) return;
+    const [[lock]] = await connection.query<RowDataPacket[]>("SELECT GET_LOCK('ferramenta_schema', 60) AS ok");
+    if (Number(lock?.ok) !== 1) throw new Error('Outra máquina está atualizando o schema do banco há mais de 60 s.');
+    try {
+      const current = await schemaVersion(connection);
+      if (current > MIGRATIONS.length) {
+        throw new SchemaTooNewError(`O banco está no schema ${current} e este código conhece até o ${MIGRATIONS.length}: atualize a branch (git pull) antes de usar a ferramenta.`);
+      }
+      for (let version = current + 1; version <= MIGRATIONS.length; version += 1) {
+        await MIGRATIONS[version - 1]!(connection);
+        await connection.query(SETTINGS_TABLE);
+        await connection.query("REPLACE INTO settings (name, value) VALUES ('schema_version', ?)", [String(version)]);
+      }
+    } finally {
+      await connection.query("SELECT RELEASE_LOCK('ferramenta_schema')");
+    }
+  } finally {
+    connection.release();
+  }
+}
+
 async function connect(attempts: number): Promise<Pool> {
   for (let attempt = 1; ; attempt += 1) {
     try {
-      for (const statement of SCHEMA) await pool.query(statement);
-      // Tabelas das Rodadas remotas, que saíram da ferramenta.
-      await pool.query('DROP TABLE IF EXISTS remote_runs, remote_executors, remote_promotions');
-      await addUserRoleColumns(pool);
-      await addColumnIfMissing(pool, 'users', 'totp_last_step', 'BIGINT NULL');
-      await widenTotpSecretColumn(pool);
-      await importLegacyPromotionFiles(pool);
+      await migrate();
       return pool;
     } catch (error) {
+      if (error instanceof SchemaTooNewError) throw new Error(error.message);
       if (attempt >= attempts) throw new Error(`Banco MySQL indisponível (${error instanceof Error ? error.message : error}). ${HINT}`);
       await new Promise((resolve) => setTimeout(resolve, 2000));
     }

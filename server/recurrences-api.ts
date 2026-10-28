@@ -1,20 +1,19 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
+import { readAtendimentosResult, runAtendimentosScanStreaming } from './atendimentos-scan.ts';
 import {
   hasRecurrencesScanResult,
   hasRecurrencesSession,
   lastRecurrencesMessage,
   lastScannedPanelUrls,
-  readAtendimentosResult,
-  runAtendimentosScanStreaming,
   runRecurrencesRefreshStreaming,
   runRecurrencesScanStreaming,
   sendRecurrencesWhatsApp,
-} from './test-runner.ts';
+} from './recurrences-scan.ts';
 import { warmLabelEmbeddings } from './atendimento-classifier.ts';
 import { isSeverity, listAtendimentoLabels, saveAtendimentoLabel } from './atendimento-labels.ts';
 import { rememberSummary, summarizeAtendimentos, summaryWhatsAppLines, type AtendimentosSummaryEvent } from './atendimentos-summary.ts';
 import { getAuthenticatedUserId } from './auth.ts';
-import { getPromoMonitorConnection } from './connectors-api.ts';
+import { getPromoMonitorConnection } from './connectors-store.ts';
 import { readJsonBody, sendJson } from './http-utils.ts';
 import { durationDetail, promotionsScanDetails, recordLog, type LogDetails } from './logs.ts';
 import { getScheduleStatus, setScheduleEnabled } from './recurrences-schedule.ts';
@@ -29,7 +28,7 @@ function logManual(
   okMessage: string,
   details?: LogDetails,
 ): void {
-  const message = result.success ? okMessage : result.error.split('\n')[0];
+  const message = result.success ? okMessage : (result.error.split('\n')[0] ?? '');
   recordLog({ source: 'recorrencias', trigger: 'manual', userId, action, ok: result.success, message, details: { ...details, duracao: durationDetail(startedAt) } });
 }
 
