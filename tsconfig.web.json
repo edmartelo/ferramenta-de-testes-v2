@@ -1,0 +1,26 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "jsx": "preserve",
+    "noUnusedLocals": true,
+    "types": ["node"]
+  },
+  "include": [
+    "src/main.ts",
+    "src/App.vue",
+    "src/router.ts",
+    "src/api.ts",
+    "src/auth-state.ts",
+    "src/shims-vue.d.ts",
+    "src/vite-env.d.ts",
+    "src/composables/**/*.ts",
+    "src/components/**/*.vue",
+    "src/views/**/*.vue",
+    "src/demo/**/*.ts",
+    "src/demo/**/*.vue",
+    "server/**/*.ts",
+    "vite.config.ts",
+    "vite.demo.config.ts"
+  ],
+  "exclude": ["node_modules", "dist"]
+}
