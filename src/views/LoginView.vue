@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
+import AppCredit from '../components/AppCredit.vue';
 import PasswordField from '../components/PasswordField.vue';
 import TotpCodeInput from '../components/TotpCodeInput.vue';
 import { api } from '../api';
@@ -169,6 +170,7 @@ function confirmFirstAccess() {
         </form>
       </template>
     </div>
+    <AppCredit />
   </div>
 </template>
 

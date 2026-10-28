@@ -8,6 +8,7 @@ import { useAsyncAction } from '../composables/useAsyncAction';
 import { useModalDialog } from '../composables/useModalDialog';
 import { errorMessage } from '../composables/utils';
 import ConnectorsMenu from './ConnectorsMenu.vue';
+import AppCredit from './AppCredit.vue';
 import CollapseSection from './CollapseSection.vue';
 import NavIcon from './NavIcon.vue';
 
@@ -182,6 +183,8 @@ async function confirmDelete() {
       </ul>
     </div>
 
+    <AppCredit class="sidebar-credit" />
+
     <div v-if="promotionToDelete" class="modal-backdrop" @keydown.esc="cancelDelete">
       <div ref="deleteDialog" class="card modal-card" role="dialog" aria-modal="true" aria-label="Excluir promoção?">
         <h3>Excluir promoção?</h3>
@@ -227,6 +230,11 @@ async function confirmDelete() {
   gap: 8px;
 }
 
+.sidebar-credit {
+  margin-top: auto;
+  padding-top: 20px;
+}
+
 .brand {
   margin-bottom: 20px;
 }
@@ -257,7 +265,7 @@ async function confirmDelete() {
 
 .new-promotion:hover {
   background: var(--accent-orange);
-  color: #1a1005;
+  color: var(--on-accent);
 }
 
 .empty {

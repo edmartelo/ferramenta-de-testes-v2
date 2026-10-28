@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
+import AppCredit from '../components/AppCredit.vue';
 import PasswordField from '../components/PasswordField.vue';
 import { api } from '../api';
 import { loadAuthState } from '../auth-state';
@@ -100,6 +101,7 @@ function confirmSetup() {
         </form>
       </template>
     </div>
+    <AppCredit />
   </div>
 </template>
 

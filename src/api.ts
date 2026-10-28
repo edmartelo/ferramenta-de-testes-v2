@@ -1,14 +1,7 @@
 import type { MechanicsRules, PromotionConfig, PromotionStage } from '../promotions/types';
-import type {
-  AtendimentosScanEvent,
-  AtendimentosScanResult,
-  AuthenticatePanelEvent,
-  RecurrencesAccessCount,
-  RecurrencesPromotionResult,
-  RecurrencesRefreshEvent,
-  RecurrencesScanEvent,
-  TestRunEvent,
-} from '../server/test-runner';
+import type { AtendimentosScanEvent, AtendimentosScanResult } from '../server/atendimentos-scan';
+import type { RecurrencesAccessCount, RecurrencesPromotionResult, RecurrencesRefreshEvent, RecurrencesScanEvent } from '../server/recurrences-scan';
+import type { AuthenticatePanelEvent, TestRunEvent } from '../server/test-runner';
 import type { ManualChecks, ManualCheckState, StoredTestRun } from '../server/test-runs';
 import type { AtendimentosSummary, AtendimentosSummaryEvent, Severity } from '../server/atendimentos-summary';
 import type { ScheduleStatus } from '../server/recurrences-schedule';
@@ -19,7 +12,7 @@ import type { LogFilters, LogSource, LogTrigger, LogUser, StoredLog } from '../s
 import type { DemoAccount, DemoAccountEventFilters, DemoAccountEventLog } from '../server/demo-accounts-api';
 import type { DemoAccountEvent } from '../server/demo/schema';
 
-export type { Atendimento, AtendimentosScanResult } from '../server/test-runner';
+export type { Atendimento, AtendimentosScanResult } from '../server/atendimentos-scan';
 export type { AtendimentosSummary, Severity } from '../server/atendimentos-summary';
 export type { ManualChecks, ManualCheckState, MechanicsRules, RecurrencesPromotionResult, StoredTestRun, TestRunEvent };
 export type { DemoAccount, DemoAccountEvent, DemoAccountEventFilters, DemoAccountEventLog, LearningStatus, LogFilters, LogSource, LogTrigger, LogUser, StoredLog, UserRole, UserSummary };

@@ -359,7 +359,7 @@ const sections = computed(() =>
 
 button.whatsapp-send {
   background: var(--accent-green);
-  color: #0b1f12;
+  color: var(--on-accent);
 }
 
 button.whatsapp-send:hover:not(:disabled) {

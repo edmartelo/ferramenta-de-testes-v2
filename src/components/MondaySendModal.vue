@@ -451,7 +451,7 @@ async function send() {
 
 .monday-send-steps li.active span {
   background: var(--accent-blue);
-  color: var(--bg);
+  color: var(--on-accent);
 }
 
 .monday-send-steps li.done {

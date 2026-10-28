@@ -33,3 +33,31 @@ export function decryptSecret(stored: string): string {
   decipher.setAuthTag(tag);
   return Buffer.concat([decipher.update(data), decipher.final()]).toString('utf8');
 }
+
+type SecretFields<T> = { [K in keyof T]: T[K] extends string | undefined ? K : never }[keyof T];
+
+/** Cifra os campos listados que ainda estão em texto puro; os demais passam como estão. */
+export function encryptFields<T extends object>(value: T, keys: readonly SecretFields<T>[]): T {
+  const copy = { ...value } as Record<keyof T, unknown>;
+  for (const key of keys) {
+    const field = copy[key];
+    if (typeof field === 'string' && field && !isEncryptedSecret(field)) copy[key] = encryptSecret(field);
+  }
+  return copy as T;
+}
+
+export function decryptFields<T extends object>(value: T, keys: readonly SecretFields<T>[]): T {
+  const copy = { ...value } as Record<keyof T, unknown>;
+  for (const key of keys) {
+    const field = copy[key];
+    if (typeof field === 'string') copy[key] = decryptSecret(field);
+  }
+  return copy as T;
+}
+
+export function hasPlainField<T extends object>(value: T, keys: readonly SecretFields<T>[]): boolean {
+  return keys.some((key) => {
+    const field = (value as Record<keyof T, unknown>)[key];
+    return typeof field === 'string' && field !== '' && !isEncryptedSecret(field);
+  });
+}

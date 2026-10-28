@@ -13,9 +13,30 @@
   --accent-blue-soft: rgba(96, 165, 250, 0.14);
   --danger: #f87171;
   --danger-soft: rgba(248, 113, 113, 0.14);
+  --on-accent: #1a1005;
 
   --radius: 10px;
   --font-sans: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  color-scheme: dark;
+}
+
+:root[data-theme='light'] {
+  --bg: #f4f5fa;
+  --surface: #ffffff;
+  --surface-hover: #eceef6;
+  --border: rgba(18, 18, 37, 0.12);
+  --text-primary: #1b1c33;
+  --text-secondary: #5b607a;
+  --accent-orange: #c2410c;
+  --accent-orange-soft: rgba(194, 65, 12, 0.12);
+  --accent-green: #15803d;
+  --accent-green-soft: rgba(21, 128, 61, 0.12);
+  --accent-blue: #2563eb;
+  --accent-blue-soft: rgba(37, 99, 235, 0.12);
+  --danger: #b91c1c;
+  --danger-soft: rgba(185, 28, 28, 0.1);
+  --on-accent: #ffffff;
+  color-scheme: light;
 }
 
 * {
@@ -96,11 +117,6 @@ input:where([type='checkbox'], [type='radio']) {
   width: auto;
 }
 
-/* Ícone do calendário claro, como o resto do tema. */
-input[type='date'] {
-  color-scheme: dark;
-}
-
 input:focus,
 select:focus,
 textarea:focus {
@@ -139,7 +155,7 @@ button {
 
 button.primary {
   background: var(--accent-orange);
-  color: #1a1005;
+  color: var(--on-accent);
 }
 
 button.primary:hover {
@@ -177,7 +193,7 @@ button.ghost:hover {
 
 button.success {
   background: var(--accent-green);
-  color: #062012;
+  color: var(--on-accent);
   animation: pop-check 0.32s ease-out;
   cursor: default;
 }
@@ -372,7 +388,7 @@ button.run-tests:not(:disabled):hover {
 
 button.run-tests.run-all {
   background: var(--accent-green);
-  color: #062012;
+  color: var(--on-accent);
   font-weight: 700;
 }
 
@@ -829,7 +845,7 @@ button.manual-action.queued[aria-pressed='true'] {
 
 button.manual-action.queued.sent {
   background: var(--accent-blue);
-  color: var(--bg);
+  color: var(--on-accent);
 }
 
 .manual-checklist-header {
@@ -879,6 +895,8 @@ button.manual-action.queued.sent {
   min-height: 100dvh;
   padding: 16px;
   display: flex;
+  flex-direction: column;
+  gap: 16px;
   align-items: center;
   justify-content: center;
 }

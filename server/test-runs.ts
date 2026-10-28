@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import type { ResultSetHeader, RowDataPacket } from 'mysql2/promise';
 import { db, jsonValue } from '../src/lib/db.ts';
 import type { TestRunEvent } from './test-runner.ts';
@@ -61,6 +62,8 @@ export async function saveManualChecks(promotionId: string, env: string, checks:
 /** Substitui a última rodada de promoção+ambiente no primeiro evento, com escritas em fila pra manter a ordem. */
 export function createTestRunRecorder(promotionId: string, env: string, runGroup: string): (event: TestRunEvent) => void {
   const results: TestResultRow[] = [];
+  /** Outra máquina pode substituir a linha com uma rodada nova: as escritas desta só valem enquanto a linha for dela. */
+  const runId = randomBytes(8).toString('hex');
   let queue: Promise<unknown> | undefined;
 
   function enqueue(sql: string, params: unknown[]): void {
@@ -73,22 +76,23 @@ export function createTestRunRecorder(promotionId: string, env: string, runGroup
   return (event) => {
     if (!queue) {
       enqueue(
-        `REPLACE INTO test_runs (promotion_id, env, run_group, total, results, manual_checks, error, started_at, finished_at)
-         VALUES (?, ?, ?, 0, '[]', '{}', NULL, ?, NULL)`,
-        [promotionId, env, runGroup, Date.now()],
+        `REPLACE INTO test_runs (promotion_id, env, run_id, run_group, total, results, manual_checks, error, started_at, finished_at)
+         VALUES (?, ?, ?, ?, 0, '[]', '{}', NULL, ?, NULL)`,
+        [promotionId, env, runId, runGroup, Date.now()],
       );
     }
     if (event.type === 'begin') {
-      enqueue('UPDATE test_runs SET total = ? WHERE promotion_id = ? AND env = ?', [event.total, promotionId, env]);
+      enqueue('UPDATE test_runs SET total = ? WHERE promotion_id = ? AND env = ? AND run_id = ?', [event.total, promotionId, env, runId]);
     } else if (event.type === 'test-end') {
       results.push({ itemId: event.id, title: event.title, status: event.status, detail: event.detail });
-      enqueue('UPDATE test_runs SET results = ? WHERE promotion_id = ? AND env = ?', [JSON.stringify(results), promotionId, env]);
+      enqueue('UPDATE test_runs SET results = ? WHERE promotion_id = ? AND env = ? AND run_id = ?', [JSON.stringify(results), promotionId, env, runId]);
     } else if (event.type === 'end') {
-      enqueue('UPDATE test_runs SET error = ?, finished_at = ? WHERE promotion_id = ? AND env = ?', [
+      enqueue('UPDATE test_runs SET error = ?, finished_at = ? WHERE promotion_id = ? AND env = ? AND run_id = ?', [
         event.success ? null : (event.error ?? 'Falha na execução.'),
         Date.now(),
         promotionId,
         env,
+        runId,
       ]);
     }
   };

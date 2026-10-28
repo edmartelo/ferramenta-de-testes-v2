@@ -6,7 +6,7 @@ import { siteRoute } from '../lib/site-url';
 import PromotionPickerModal from '../components/PromotionPickerModal.vue';
 import SlackSendModal from '../components/SlackSendModal.vue';
 import TotpCodeModal from '../components/TotpCodeModal.vue';
-import { hasAtendimentos } from '../../server/atendimentos-panels';
+import { hasAtendimentos } from '../lib/atendimentos-panels';
 import { api, type Atendimento, type AtendimentosSummary, type RecurrencesPromotionResult } from '../api';
 import { useTotpGate } from '../composables/useTotpGate';
 import { errorMessage, safeHttpUrl } from '../composables/utils';
@@ -834,7 +834,7 @@ async function runScan(totpCode: string | undefined) {
 
 button.whatsapp-send {
   background: var(--accent-green);
-  color: #0b1f12;
+  color: var(--on-accent);
 }
 
 button.whatsapp-send:hover {

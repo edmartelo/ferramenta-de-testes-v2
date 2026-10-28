@@ -35,6 +35,16 @@ onBeforeUnmount(() => {
   document.removeEventListener('keydown', onDocumentKeydown);
 });
 
+const theme = ref(document.documentElement.dataset.theme === 'light' ? 'light' : 'dark');
+
+function toggleTheme() {
+  theme.value = theme.value === 'light' ? 'dark' : 'light';
+  document.documentElement.dataset.theme = theme.value;
+  try {
+    localStorage.setItem('theme', theme.value);
+  } catch {}
+}
+
 const { pending: loggingOut, error: logoutError, run } = useAsyncAction();
 
 function openMyAccount() {
@@ -67,29 +77,40 @@ function logout() {
         <span class="topbar-title">Ferramenta de testes</span>
       </template>
     </div>
-    <div v-if="authState.name" class="user-menu" ref="userMenuRoot">
+    <div class="topbar-right">
       <button
         type="button"
-        class="ghost topbar-user"
-        :class="{ open: userMenuOpen }"
-        aria-haspopup="menu"
-        :aria-expanded="userMenuOpen"
-        @click="toggleUserMenu"
+        class="ghost theme-toggle"
+        :aria-label="theme === 'light' ? 'Usar tema escuro' : 'Usar tema claro'"
+        :title="theme === 'light' ? 'Tema escuro' : 'Tema claro'"
+        @click="toggleTheme"
       >
-        <NavIcon name="user" />
-        <span class="topbar-name">{{ authState.name }}</span>
-        <NavIcon name="chevron" class="topbar-chevron" />
+        <NavIcon :name="theme === 'light' ? 'moon' : 'sun'" />
       </button>
-      <div v-if="userMenuOpen" class="dropdown" role="menu">
-        <button v-if="isDemo" type="button" class="dropdown-item neutral" role="menuitem" @click="openMyAccount">
+      <div v-if="authState.name" class="user-menu" ref="userMenuRoot">
+        <button
+          type="button"
+          class="ghost topbar-user"
+          :class="{ open: userMenuOpen }"
+          aria-haspopup="menu"
+          :aria-expanded="userMenuOpen"
+          @click="toggleUserMenu"
+        >
           <NavIcon name="user" />
-          Meus dados
+          <span class="topbar-name">{{ authState.name }}</span>
+          <NavIcon name="chevron" class="topbar-chevron" />
         </button>
-        <button type="button" class="dropdown-item" role="menuitem" :disabled="loggingOut" @click="logout">
-          <NavIcon name="logout" />
-          {{ loggingOut ? 'Saindo...' : 'Sair' }}
-        </button>
-        <p v-if="logoutError" class="dropdown-item" style="color: var(--danger)">{{ logoutError }}</p>
+        <div v-if="userMenuOpen" class="dropdown" role="menu">
+          <button v-if="isDemo" type="button" class="dropdown-item neutral" role="menuitem" @click="openMyAccount">
+            <NavIcon name="user" />
+            Meus dados
+          </button>
+          <button type="button" class="dropdown-item" role="menuitem" :disabled="loggingOut" @click="logout">
+            <NavIcon name="logout" />
+            {{ loggingOut ? 'Saindo...' : 'Sair' }}
+          </button>
+          <p v-if="logoutError" class="dropdown-item" style="color: var(--danger)">{{ logoutError }}</p>
+        </div>
       </div>
     </div>
   </header>
@@ -131,6 +152,22 @@ function logout() {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.theme-toggle {
+  padding: 8px;
+  color: var(--text-secondary);
+}
+
+.theme-toggle .nav-icon {
+  display: block;
 }
 
 .user-menu {

@@ -18,7 +18,6 @@
     "src/views/**/*.vue",
     "src/demo/**/*.ts",
     "src/demo/**/*.vue",
-    "server/**/*.ts",
     "vite.config.ts",
     "vite.demo.config.ts"
   ],

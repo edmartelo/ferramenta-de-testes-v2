@@ -99,7 +99,7 @@ function confirm() {
   width: 10px;
   height: 10px;
   clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
-  background: #1a1005;
+  background: var(--on-accent);
   transform: scale(0);
   transition: transform 0.12s ease-out;
 }
