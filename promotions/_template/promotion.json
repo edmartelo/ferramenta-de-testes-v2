@@ -1,0 +1,23 @@
+{
+  "id": "slug-da-promocao",
+  "name": "Nome da Promoção",
+  "client": "Nome do Cliente",
+  "agencyId": "agencia-aurora",
+  "paths": {
+    "backend": "C:/caminho/local/para/o/backend",
+    "frontend": "C:/caminho/local/para/o/frontend"
+  },
+  "environments": {
+    "site": { "staging": "", "production": "" },
+    "adminPanel": { "staging": "", "production": "" }
+  },
+  "dates": { "start": "2026-01-01", "end": "2026-12-31" },
+  "mechanics": {
+    "hasCoupon": true,
+    "hasInstantPrizes": false,
+    "hasAccelerators": false,
+    "hasLuckyNumbers": false,
+    "hasWhatsAppBot": false,
+    "hasSuplente": false
+  }
+}

@@ -1,0 +1,87 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - '.gitignore'
+  pull_request:
+    branches: [dev, main]
+    paths-ignore:
+      - '**.md'
+      - '.gitignore'
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Job inicial apenas para instalar as dependências e compartilhar com os outros
+  install-and-validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      playwright-version: ${{ steps.playwright-version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # Descobre a versão exata do Playwright para usar como chave de cache do browser
+      - id: playwright-version
+        run: echo "version=$(npx playwright --version | awk '{print $2}')" >> $GITHUB_OUTPUT
+
+      - name: Typecheck (Node)
+        run: npx tsc --noEmit
+
+      - name: Typecheck (web)
+        run: npx vue-tsc --noEmit -p tsconfig.web.json
+
+  unit-tests:
+    needs: install-and-validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # Tenta recuperar o Chromium do cache do GitHub
+      - name: Cache Playwright Browsers
+        id: cache-playwright
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ needs.install-and-validate.outputs.playwright-version }}
+
+      # Só instala o Chromium se não encontrou no cache
+      - name: Install Chromium
+        if: steps.cache-playwright.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium
+
+      # Garante as dependências do sistema operacional do Playwright caso o binário venha do cache
+      - name: Install Playwright OS Dependencies
+        if: steps.cache-playwright.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
+
+      # Specs puras não dependem do dispositivo: um projeto basta.
+      - name: Unit tests (tests/_lib)
+        run: npx playwright test tests/_lib --project=chromium
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: test-results
+          path: test-results/
+          retention-days: 7
