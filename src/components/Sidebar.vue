@@ -107,45 +107,52 @@ async function confirmDelete() {
 
     <p v-if="stageError" class="empty" style="color: var(--danger)">{{ stageError }}</p>
 
-    <div
-      v-for="section in STAGE_SECTIONS"
-      :key="section.stage"
-      class="stage-section"
-      :class="{ 'drop-target': dropTarget === section.stage }"
-      @dragover.prevent="draggedId && (dropTarget = section.stage)"
-      @dragleave.self="dropTarget = null"
-      @drop.prevent="dropOn(section.stage)"
-    >
-      <CollapseSection :title="`${section.title} (${promotionsByStage[section.stage]!.length})`" :icon="section.stage" :default-open="section.stage === 'testing'">
-        <nav class="history">
-          <p v-if="promotionsByStage[section.stage]!.length === 0" class="empty stage-empty">Arraste uma promoção para cá.</p>
-          <div
-            v-for="p in promotionsByStage[section.stage]"
-            :key="p.id"
-            class="history-item"
-            :class="{ active: route.params.id === p.id, dragging: draggedId === p.id }"
-            draggable="true"
-            @dragstart="startDrag($event, p.id)"
-            @dragend="draggedId = null; dropTarget = null"
-          >
-            <router-link :to="`/promotions/${p.id}/${defaultEnv}`" class="history-item-text" :aria-current="route.params.id === p.id ? 'page' : undefined">
-              <strong>{{ p.name }}</strong>
-              <span>{{ p.client }}</span>
-            </router-link>
-            <button
-              v-if="authState.role === 'master'"
-              type="button"
-              class="history-item-delete"
-              title="Excluir promoção"
-              :aria-label="`Excluir promoção ${p.name}`"
-              @click="askDelete(p)"
+    <CollapseSection title="Testes" icon="tests" default-open>
+      <div
+        v-for="section in STAGE_SECTIONS"
+        :key="section.stage"
+        class="stage-section"
+        :class="{ 'drop-target': dropTarget === section.stage }"
+        @dragover.prevent="draggedId && (dropTarget = section.stage)"
+        @dragleave.self="dropTarget = null"
+        @drop.prevent="dropOn(section.stage)"
+      >
+        <CollapseSection :title="`${section.title} (${promotionsByStage[section.stage]!.length})`" :icon="section.stage" :default-open="section.stage === 'testing'">
+          <nav class="history">
+            <p v-if="promotionsByStage[section.stage]!.length === 0" class="empty stage-empty">Arraste uma promoção para cá.</p>
+            <div
+              v-for="p in promotionsByStage[section.stage]"
+              :key="p.id"
+              class="history-item"
+              :class="{ active: route.params.id === p.id, dragging: draggedId === p.id }"
+              draggable="true"
+              @dragstart="startDrag($event, p.id)"
+              @dragend="draggedId = null; dropTarget = null"
             >
-              <NavIcon name="trash" />
-            </button>
-          </div>
-        </nav>
-      </CollapseSection>
-    </div>
+              <router-link :to="`/promotions/${p.id}/${defaultEnv}`" class="history-item-text" :aria-current="route.params.id === p.id ? 'page' : undefined">
+                <strong>{{ p.name }}</strong>
+                <span>{{ p.client }}</span>
+              </router-link>
+              <button
+                v-if="authState.role === 'master'"
+                type="button"
+                class="history-item-delete"
+                title="Excluir promoção"
+                :aria-label="`Excluir promoção ${p.name}`"
+                @click="askDelete(p)"
+              >
+                <NavIcon name="trash" />
+              </button>
+            </div>
+          </nav>
+        </CollapseSection>
+      </div>
+      <ul class="tools-list">
+        <li>
+          <router-link to="/qualidade-codigo" class="tools-list-item" :aria-current="route.path.startsWith('/qualidade-codigo') ? 'page' : undefined"><NavIcon name="quality" />Qualidade de código</router-link>
+        </li>
+      </ul>
+    </CollapseSection>
 
     <hr v-if="authState.authenticated" class="sidebar-divider" />
 
@@ -388,6 +395,11 @@ async function confirmDelete() {
 
 .tools-list-item:hover {
   background: var(--surface-hover);
+}
+
+.tools-list-item[aria-current='page'] {
+  background: var(--surface-hover);
+  font-weight: 700;
 }
 
 .sidebar-scrim {

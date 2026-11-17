@@ -17,6 +17,13 @@ export const router = createRouter({
     { path: '/conectores/monday/:boardId?', name: 'monday', component: () => import('./views/MondayView.vue'), props: true },
     { path: '/recorrencias', name: 'recorrencias', component: () => import('./views/RecurrenciasView.vue') },
     { path: '/configuracoes/aprendizado', name: 'aprendizado', component: () => import('./views/LearningView.vue') },
+    { path: '/qualidade-codigo', name: 'qualidade-codigo', component: () => import('./views/SonarView.vue') },
+    {
+      path: '/qualidade-codigo/projeto/:projectKey',
+      name: 'qualidade-codigo-projeto',
+      component: () => import('./views/SonarProjectView.vue'),
+      props: true,
+    },
     { path: '/logs', name: 'logs', component: () => import('./views/LogsView.vue') },
     { path: '/configuracoes/usuarios', name: 'usuarios', component: () => import('./views/UsersView.vue'), meta: { masterOnly: true } },
     { path: '/configuracoes/demo', name: 'demo', component: () => import('./views/DemoAccountsView.vue'), meta: { masterOnly: true } },

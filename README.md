@@ -87,6 +87,13 @@ Além da automação, a plataforma combina **testes automatizados, conferência 
 
 O processamento local foi adotado para reduzir o envio de dados de participantes a provedores externos de LLM. Isso não substitui a avaliação dos controles de segurança e privacidade do ambiente em que a aplicação é executada.
 
+### 🛡️ Qualidade de código com SonarQube
+
+- Painel no formato do SonarQube: Quality Gate, notas de A a E, segurança, confiabilidade, manutenibilidade, cobertura e duplicações.
+- Lista de problemas com filtros por tipo, severidade e arquivo, com link para cada um no SonarQube.
+- Na demonstração, o navegador lê o SonarQube **da sua máquina** por um pequeno proxy local; o token fica só na aba e não passa pelo servidor.
+- Assistente em 5 etapas: instalar o SonarQube, criar o token, rodar o proxy (com teste de conexão), conectar e gerar o comando da primeira análise.
+
 ### 🔐 Segurança e controle de acesso
 
 - Autenticação por senha.
@@ -113,6 +120,7 @@ O processamento local foi adotado para reduzir o envio de dados de participantes
 | 🧠 Qwen3 14B | Modelo de linguagem para classificação e resumos |
 | 🔎 nomic-embed-text | Modelo de embeddings |
 | ✅ Playwright Test | Execução dos testes automatizados da suíte |
+| 🛡️ SonarQube | Análise estática de qualidade e segurança do código |
 | 🔁 GitHub Actions | Integração contínua para verificações de tipos e testes unitários |
 
 **Arquitetura:** a API é integrada ao servidor de desenvolvimento do Vite, dentro de `server/`, sem a necessidade de manter um backend separado para esse fluxo.
@@ -203,6 +211,7 @@ A plataforma pode integrar serviços externos para armazenamento, monitoramento 
 | 💼 Slack | Envio de resumos para canais | Não |
 | 📋 Monday.com | Criação de itens e atualizações em quadros | Não |
 | 🔎 Monitor de Promoções | Fonte dos dados de recorrências e atendimentos | Não |
+| 🛡️ SonarQube | Painel de qualidade de código (Qualidade de código) | Não |
 | ☁️ Aiven API | Gerenciamento do serviço de banco para recorrências agendadas | Não |
 
 ### Configuração dos conectores
@@ -240,6 +249,12 @@ Sem o Ollama, a classificação dos atendimentos pode recorrer a palavras-chave.
 **Monitor de Promoções**
 - Acesse **Configurações → Conectores**.
 - Configure as credenciais e a chave do autenticador exigidas pela integração.
+
+**SonarQube**
+- Suba o SonarQube Community em Docker: `docker run -d --name sonarqube -p 9001:9000 sonarqube:community`.
+- Em `http://127.0.0.1:9001`, entre com admin/admin, troque a senha e gere um **User Token** em My Account → Security.
+- Na demonstração: baixe o proxy pela tela **Qualidade de código**, rode `node sonar-cors-proxy.mjs` e siga o passo a passo.
+- Nunca grave o token no repositório.
 
 **Aiven API**
 - Configure `AIVEN_API_TOKEN`, `AIVEN_PROJECT` e `AIVEN_SERVICE` quando utilizar a funcionalidade de gerenciamento do serviço de banco.

@@ -280,11 +280,11 @@ function save() {
         <template v-if="isDev">
           <div class="field">
             <label for="backend">Caminho da pasta do backend</label>
-            <input id="backend" v-model="backend" :disabled="!isEditing" required placeholder="C:/wamp/www/dev/cliente-x/backend" />
+            <input id="backend" v-model="backend" :disabled="!isEditing" required placeholder="C:/projetos/cliente-x/backend" />
           </div>
           <div class="field">
             <label for="frontend">Caminho da pasta do frontend</label>
-            <input id="frontend" v-model="frontend" :disabled="!isEditing" required placeholder="C:/wamp/www/dev/cliente-x/frontend" />
+            <input id="frontend" v-model="frontend" :disabled="!isEditing" required placeholder="C:/projetos/cliente-x/frontend" />
           </div>
         </template>
         <div class="field">

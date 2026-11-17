@@ -86,6 +86,13 @@ app (`src/main.ts`, `App.vue`, `components/`, `views/`, `composables/`…).
   automatic except the scheduled Recorrências run (`server/recurrences-schedule.ts`, Windows
   `npm run dev` only).
 - **Slack/Monday**: OAuth secrets in root `.env`; Slack send always via user-confirmed modal.
+- **SonarQube (demo)**: Testes → Qualidade de código (`/qualidade-codigo`, `SonarView.vue`, `SonarProjectView.vue`)
+  reads the **visitor's own** local SonarQube from the browser (`src/demo/sonar-browser.ts`), never through the demo
+  server. SonarQube sends no CORS, so the visitor runs `public/sonar-cors-proxy.mjs` (served by the demo): loopback
+  only, GET `/api/*` only, allows only the demo origin and localhost, never logs the token. The User Token lives only
+  in `sessionStorage`; the CSP `connect-src` allows `http://127.0.0.1:*`/`http://localhost:*` for this. Setup is a
+  5-step wizard (`SonarSetupWizard.vue`); the demo can't run the scanner, it shows the command (no token embedded).
+  Never ship our tokens, project keys or local paths in this feature.
 - **Demo**: `vite.demo.config.ts` (`npm run dev:demo`) swaps `src/api.ts` for `src/demo/api.ts`
   (fictitious data, fake runner in the browser) and the login for `src/demo/DemoLoginView.vue`. Only
   signup/login (`server/demo/accounts.ts`) touch a DB: a separate demo database with a

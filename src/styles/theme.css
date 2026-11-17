@@ -17,6 +17,14 @@
 
   --radius: 10px;
   --font-sans: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  /* Notas A–E nas cores do SonarQube; com texto escuro passam AA nos dois temas. */
+  --sonar-a: #00aa00;
+  --sonar-b: #b0d513;
+  --sonar-c: #eabe06;
+  --sonar-d: #ed7d20;
+  --sonar-e: #f0565b;
+  --sonar-on: #1f1e1d;
+  --sonar-ring: transparent;
   color-scheme: dark;
 }
 
@@ -36,6 +44,8 @@
   --danger: #b91c1c;
   --danger-soft: rgba(185, 28, 28, 0.1);
   --on-accent: #ffffff;
+  /* Contorno: amarelo e verde-limão quase somem sobre o fundo branco. */
+  --sonar-ring: rgba(20, 20, 19, 0.35);
   color-scheme: light;
 }
 

@@ -11,12 +11,15 @@ const isAuthPage = computed(() => route.matched.length === 0 || route.name === '
 const keptAliveViews = computed(() => (isAuthPage.value ? [] : ['RecurrenciasView']));
 const sidebarOpen = ref(false);
 const isDemo = import.meta.env.MODE === 'demo';
+const demoBanner = computed(() =>
+  route.path.startsWith('/qualidade-codigo') ? 'Modo demonstração — esta tela usa o seu SonarQube local' : 'Modo demonstração — dados fictícios',
+);
 watch(() => route.fullPath, () => (sidebarOpen.value = false));
 </script>
 
 <template>
   <div class="app-shell">
-    <div v-if="isDemo" class="demo-banner" role="status">Modo demonstração — dados fictícios</div>
+    <div v-if="isDemo" class="demo-banner" role="status">{{ demoBanner }}</div>
     <TopBar v-if="!isAuthPage" :sidebar-open="sidebarOpen" @toggle-sidebar="sidebarOpen = !sidebarOpen" />
     <div class="layout">
       <Sidebar v-if="!isAuthPage" :open="sidebarOpen" @close="sidebarOpen = false" />
