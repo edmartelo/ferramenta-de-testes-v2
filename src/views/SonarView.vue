@@ -279,6 +279,7 @@ onMounted(async () => {
 .sonar-metrics div {
   display: flex;
   flex-direction: column-reverse;
+  justify-content: flex-end;
   gap: 2px;
   min-width: 0;
 }
