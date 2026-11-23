@@ -42,6 +42,7 @@ Além da automação, a plataforma combina **testes automatizados, conferência 
 - 📊 Acompanhar o progresso e consultar o histórico das execuções.
 - 🔎 Revisar manualmente cenários que não podem ser automatizados.
 - 🔐 Gerenciar usuários, autenticação e permissões.
+- ⚡ Rodar testes de carga com JMeter em ambientes de teste.
 - 🔄 Monitorar promoções ativas e recorrências.
 - 🤖 Classificar atendimentos com um modelo de IA executado localmente.
 - 📣 Enviar resumos operacionais para WhatsApp e Slack.
@@ -87,6 +88,15 @@ Além da automação, a plataforma combina **testes automatizados, conferência 
 
 O processamento local foi adotado para reduzir o envio de dados de participantes a provedores externos de LLM. Isso não substitui a avaliação dos controles de segurança e privacidade do ambiente em que a aplicação é executada.
 
+### ⚡ Testes de carga com JMeter
+
+- Cenários prontos (cadastro de participante, login, envio de cupom, páginas públicas), escolhidos por promoção.
+- Apache JMeter em Docker, em modo CLI, com o plano de teste montado só por propriedades (`-J`).
+- Métricas por etapa (tempo médio, p95, vazão e taxa de erro) e histórico das rodadas, além do relatório HTML do JMeter.
+- Bloqueio por limite de requisições por IP (HTTP 429) e erros do encerramento ficam fora da conta de erros.
+- **Nunca contra produção:** só ambientes de desenvolvimento e homologação, recusa endereços de produção de qualquer promoção, não segue redirecionamentos e limita usuários e duração (`src/lib/load-test-guard.ts`, coberto por testes).
+- Na demonstração, a mesma regra decide o alvo, mas nenhuma requisição sai do navegador: a rodada é simulada e as métricas são fictícias.
+
 ### 🛡️ Qualidade de código com SonarQube
 
 - Painel no formato do SonarQube: Quality Gate, notas de A a E, segurança, confiabilidade, manutenibilidade, cobertura e duplicações.
@@ -121,6 +131,8 @@ O processamento local foi adotado para reduzir o envio de dados de participantes
 | 🔎 nomic-embed-text | Modelo de embeddings |
 | ✅ Playwright Test | Execução dos testes automatizados da suíte |
 | 🛡️ SonarQube | Análise estática de qualidade e segurança do código |
+| ⚡ Apache JMeter 5.6 | Testes de carga e performance |
+| 🐳 Docker | Execução isolada do JMeter e do SonarQube |
 | 🔁 GitHub Actions | Integração contínua para verificações de tipos e testes unitários |
 
 **Arquitetura:** a API é integrada ao servidor de desenvolvimento do Vite, dentro de `server/`, sem a necessidade de manter um backend separado para esse fluxo.
@@ -357,6 +369,7 @@ O projeto adota as seguintes medidas:
 - 🔒 Segredos do autenticador são protegidos com AES-256-GCM.
 - 🕵️ Dados pessoais são mascarados antes de serem armazenados no banco.
 - 🧱 As operações de leitura em produção, utilizadas por Recorrências e Atendimentos, passam por uma proteção que bloqueia requisições de escrita além do login, implementada em `src/lib/read-only-guard.ts` e coberta por testes.
+- ⚡ Testes de carga passam por uma única regra (`src/lib/load-test-guard.ts`, coberta por testes) que só libera desenvolvimento e homologação e é conferida de novo imediatamente antes de o container do JMeter subir.
 - 🧪 A configuração de demonstração utiliza dados fictícios e um banco separado.
 
 **Boas práticas para colaboradores:**
