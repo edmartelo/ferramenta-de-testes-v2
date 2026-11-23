@@ -7,12 +7,14 @@ import { MASS_REGISTRATION_GROUPS, MASS_REGISTRATION_LIMITS } from '../knowledge
 import { deletePromotion, listPromotions, PromotionConflictError, promotionExists, readPromotionForUpdate, writePromotion } from '../promotions/index.ts';
 import { PROMOTION_STAGES, type EnvKey, type PromotionConfig, type PromotionStage } from '../promotions/types.ts';
 import { testGroups, runAdminPanelLoginStreaming, runTestSuiteStreaming } from './test-runner.ts';
+import { cancelLoadTest, deleteLoadTestRuns, handleLoadTestsRoute, LOAD_MASTER_ONLY, loadTestStatus, previewLoadTest, startLoadTest } from './jmeter.ts';
+import { LoadTargetError } from '../src/lib/load-test-guard.ts';
 
 import { promotionDir } from '../src/lib/paths.ts';
 import { slugify } from '../src/lib/slug.ts';
 import { MASS_QUANTITY_ENV } from '../src/lib/test-constants.ts';
 import { existingAdminPanelSessionPath, readPromotionCredentials as readPanelCredentials, writePromotionCredentials as writePanelCredentials, type PromotionCredentials } from '../src/lib/promotion-credentials.ts';
-import { getAuthenticatedRole, handleAuthRoute, handleUsersRoute, requireAuth } from './auth.ts';
+import { getAuthenticatedRole, getAuthenticatedUserId, handleAuthRoute, handleUsersRoute, requireAuth } from './auth.ts';
 import { db } from '../src/lib/db.ts';
 import { handleConnectorsRoute, handleSlackOAuthCallback } from './connectors-api.ts';
 import { handleDemoAccountsRoute } from './demo-accounts-api.ts';
@@ -63,6 +65,7 @@ function applyEnvironmentFields(promotion: PromotionConfig, id: string, env: UiE
   const configKey = ENV_TO_CONFIG_KEY[env];
   promotion.environments.site[configKey] = String(body.site ?? '').trim() || undefined;
   promotion.environments.adminPanel[configKey] = String(body.adminPanel ?? '').trim() || undefined;
+  if ('apiUrl' in body) promotion.environments.api = { ...promotion.environments.api, [configKey]: String(body.apiUrl ?? '').trim() || undefined };
 
   const normalize: Record<keyof PromotionCredentials, (value: string) => string> = {
     adminPanelUser: (value) => value.trim(),
@@ -141,6 +144,7 @@ const PROMOTION_ROUTES: Record<string, PromotionRoute> = {
     if (!master) return sendJson(res, 403, { error: 'Só usuários Master excluem promoções.' });
     await deletePromotion(id);
     await deleteTestRuns(id);
+    await deleteLoadTestRuns(id);
     rmSync(promotionDir(id), { recursive: true, force: true });
     return sendJson(res, 200, { ok: true });
   },
@@ -259,6 +263,27 @@ const PROMOTION_ROUTES: Record<string, PromotionRoute> = {
     runTestSuiteStreaming({ promotionId: id, envKey: configKey, headed: body.headed === true, testDirectories: selected.map((group) => group.directory), onEvent }, res);
   },
 
+  'GET load-tests': async ({ res, promotion, master }) => {
+    if (!master) return sendJson(res, 403, { error: LOAD_MASTER_ONLY });
+    return sendJson(res, 200, await loadTestStatus(promotion));
+  },
+
+  'POST load-test-preview': async ({ req, res, promotion, master }) => {
+    if (!master) return sendJson(res, 403, { error: LOAD_MASTER_ONLY });
+    return sendJson(res, 200, await previewLoadTest(promotion, await readJsonBody(req)));
+  },
+
+  'POST load-test': async ({ req, res, promotion, master }) => {
+    if (!master) return sendJson(res, 403, { error: LOAD_MASTER_ONLY });
+    const result = await startLoadTest(promotion, await readJsonBody(req), getAuthenticatedUserId(req));
+    return result.started ? sendJson(res, 202, { runId: result.runId }) : sendJson(res, result.status, { error: result.error });
+  },
+
+  'POST load-test-cancel': ({ res, id, master }) => {
+    if (!master) return sendJson(res, 403, { error: LOAD_MASTER_ONLY });
+    return cancelLoadTest(id) ? sendJson(res, 200, { ok: true }) : sendJson(res, 409, { error: 'Nenhum teste de carga desta promoção em andamento.' });
+  },
+
   'GET test-run': async ({ req, res, id }) => {
     const env = parseUiEnv(new URL(req.url ?? '', 'http://localhost').searchParams.get('env'));
     if (!env) return sendJson(res, 400, { error: 'Informe o ambiente (dev/homolog/producao).' });
@@ -304,6 +329,7 @@ export function promotionsApiPlugin(): Plugin {
           if (await handleLearningRoute(req, res, url.pathname)) return;
           if (await handleLogsRoute(req, res, url)) return;
           if (await handleDemoAccountsRoute(req, res, url)) return;
+          if (await handleLoadTestsRoute(req, res, url)) return;
 
           if (req.method === 'GET' && parts.length === 2 && parts[1] === 'agencies') {
             return sendJson(res, 200, [
@@ -369,7 +395,7 @@ export function promotionsApiPlugin(): Plugin {
           return sendJson(res, 404, { error: 'Rota de API desconhecida.' });
         } catch (error) {
           if (res.headersSent) return void res.end();
-          const status = error instanceof BadRequestError ? 400 : error instanceof PromotionConflictError ? 409 : 500;
+          const status = error instanceof BadRequestError || error instanceof LoadTargetError ? 400 : error instanceof PromotionConflictError ? 409 : 500;
           return sendJson(res, status, { error: error instanceof Error ? error.message : String(error) });
         }
       });

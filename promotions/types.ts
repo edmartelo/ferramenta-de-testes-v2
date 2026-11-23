@@ -18,7 +18,8 @@ export interface PromotionConfig {
     /** `dev` é a URL do servidor local rodando, não `paths.frontend`. */
     site: { staging?: string; production?: string; dev?: string };
     adminPanel: { staging?: string; production?: string; dev?: string };
-    api?: { baseUrl: string };
+    /** Base da API do back (sem `/api`); opcional: o teste de carga usa a `endpoint_uri` do site quando vazio. */
+    api?: { staging?: string; production?: string; dev?: string };
   };
 
   dates: { start: string; end: string };

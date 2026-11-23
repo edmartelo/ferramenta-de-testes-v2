@@ -188,6 +188,28 @@ const MIGRATIONS: Migration[] = [
     await addColumnIfMissing(connection, 'promotions', 'version', 'INT NOT NULL DEFAULT 0');
     await addColumnIfMissing(connection, 'test_runs', 'run_id', 'VARCHAR(32) NULL');
   },
+  // Testes de carga (JMeter): só métricas por etapa, o relatório fica na máquina que rodou.
+  async (connection) => {
+    await connection.query(`CREATE TABLE IF NOT EXISTS load_test_runs (
+      id VARCHAR(32) PRIMARY KEY,
+      promotion_id VARCHAR(128) NOT NULL,
+      env VARCHAR(16) NOT NULL,
+      scenario VARCHAR(64) NOT NULL,
+      target_url VARCHAR(500) NOT NULL,
+      api_url VARCHAR(500) NULL,
+      users INT NOT NULL,
+      rampup_s INT NOT NULL,
+      duration_s INT NOT NULL,
+      user_id VARCHAR(32) NULL,
+      machine VARCHAR(128) NOT NULL,
+      status VARCHAR(16) NOT NULL,
+      summary JSON NULL,
+      error TEXT NULL,
+      started_at BIGINT NOT NULL,
+      finished_at BIGINT NULL,
+      INDEX (promotion_id, started_at)
+    )`);
+  },
 ];
 
 async function schemaVersion(connection: PoolConnection): Promise<number> {

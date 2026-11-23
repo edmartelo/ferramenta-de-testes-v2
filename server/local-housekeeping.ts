@@ -4,12 +4,13 @@ import { PROMOTIONS_ROOT } from '../src/lib/paths.ts';
 import { encryptStoredCredentials } from '../src/lib/promotion-credentials.ts';
 import { purgeOldAtendimentos } from './atendimentos-scan.ts';
 import { encryptStoredConnectors } from './connectors-store.ts';
+import { purgeOldLoadResults } from './jmeter.ts';
 
 const INTERVAL_MS = 60 * 60_000;
 
 const housekeeping = globalThis as unknown as { __localHousekeeping?: ReturnType<typeof setInterval> };
 
-/** Arquivos desta máquina: cifra segredos antigos, arquiva promoções excluídas e apaga atendimentos vencidos. */
+/** Arquivos desta máquina: cifra segredos antigos, arquiva promoções excluídas e apaga atendimentos e resultados do JMeter vencidos. */
 export function startLocalHousekeeping(onError: (message: string) => void): void {
   const run = async () => {
     const steps: [string, () => void | Promise<void>][] = [
@@ -17,6 +18,7 @@ export function startLocalHousekeeping(onError: (message: string) => void): void
       ['cifrar credenciais', encryptPromotionCredentials],
       ['arquivar promoções excluídas', archiveDeletedPromotionFolders],
       ['apagar atendimentos antigos', purgeOldAtendimentos],
+      ['apagar resultados antigos do JMeter', purgeOldLoadResults],
     ];
     for (const [label, step] of steps) {
       try {

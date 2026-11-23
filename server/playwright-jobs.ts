@@ -21,11 +21,13 @@ export interface JobLock {
   conflictsWith?: string[];
 }
 
-/** Testes, login no painel e Recorrências dividem porta, sessão e arquivo de saída: um de cada vez. */
+export const JMETER_LOCK_KEY = 'jmeter';
+
+/** Testes, login no painel e Recorrências dividem porta, sessão e arquivo de saída: um de cada vez. A carga do JMeter distorceria a suíte e vice-versa. */
 export const EXCLUSIVE_LOCK: JobLock = {
   key: 'exclusive',
-  busyMessage: 'Já existe uma execução em andamento (testes, login no painel ou Recorrências). Aguarde terminar ou cancele antes de iniciar outra.',
-  conflictsWith: ['recurrences-refresh'],
+  busyMessage: 'Já existe uma execução em andamento (testes, login no painel, Recorrências ou teste de carga). Aguarde terminar ou cancele antes de iniciar outra.',
+  conflictsWith: ['recurrences-refresh', JMETER_LOCK_KEY],
 };
 
 /** Em globalThis: o restart do Vite reimporta o módulo enquanto o Playwright filho continua rodando. */
@@ -33,6 +35,17 @@ const activeJobs: Set<string> = ((globalThis as unknown as { __activePlaywrightJ
 
 function isLockBusy(lock: JobLock): boolean {
   return activeJobs.has(lock.key) || (lock.conflictsWith ?? []).some((key) => activeJobs.has(key));
+}
+
+/** Para jobs que não são Playwright (JMeter): mesmo conjunto de locks, quem pega precisa chamar `releaseLock`. */
+export function tryAcquireLock(lock: JobLock): boolean {
+  if (isLockBusy(lock)) return false;
+  activeJobs.add(lock.key);
+  return true;
+}
+
+export function releaseLock(lock: JobLock): void {
+  activeJobs.delete(lock.key);
 }
 /** `--output` de jobs deste processo que já terminaram; em globalThis pra sobreviver ao restart do Vite. */
 const finishedOutputDirs: Set<string> = ((globalThis as unknown as { __finishedOutputDirs?: Set<string> }).__finishedOutputDirs ??= new Set());

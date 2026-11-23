@@ -151,6 +151,9 @@ async function confirmDelete() {
         <li>
           <router-link to="/qualidade-codigo" class="tools-list-item" :aria-current="route.path.startsWith('/qualidade-codigo') ? 'page' : undefined"><NavIcon name="quality" />Qualidade de código</router-link>
         </li>
+        <li v-if="authState.role === 'master'">
+          <router-link to="/carga" class="tools-list-item" :aria-current="route.path.startsWith('/carga') ? 'page' : undefined"><NavIcon name="gauge" />JMeter</router-link>
+        </li>
       </ul>
     </CollapseSection>
 

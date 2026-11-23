@@ -419,6 +419,11 @@ export const api: Api = {
   }),
   exportLearning: fullVersionOnly,
   importLearning: fullVersionOnly,
+  getLoadTestsOverview: fullVersionOnly,
+  getLoadTests: fullVersionOnly,
+  previewLoadTest: fullVersionOnly,
+  startLoadTest: fullVersionOnly,
+  cancelLoadTest: fullVersionOnly,
   listLogs: async (_source, filters = {}) => {
     if (filters.before === undefined) refreshLogs();
     const page = filterLogs(filters);

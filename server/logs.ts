@@ -1,9 +1,11 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { RowDataPacket } from 'mysql2/promise';
 import { db, jsonValue } from '../src/lib/db.ts';
+import { getAuthenticatedRole } from './auth.ts';
 import { sendJson } from './http-utils.ts';
 
-export const LOG_SOURCES = ['recorrencias'] as const;
+export const LOG_SOURCES = ['recorrencias', 'jmeter'] as const;
+const MASTER_ONLY_SOURCES: readonly LogSource[] = ['jmeter'];
 export type LogSource = (typeof LOG_SOURCES)[number];
 export const LOG_TRIGGERS = ['agendada', 'manual'] as const;
 export type LogTrigger = (typeof LOG_TRIGGERS)[number];
@@ -132,6 +134,7 @@ export async function handleLogsRoute(req: IncomingMessage, res: ServerResponse,
   const params = url.searchParams;
   const source = params.get('source') as LogSource;
   if (!LOG_SOURCES.includes(source)) return sendJson(res, 400, { error: 'Origem de log inválida.' });
+  if (MASTER_ONLY_SOURCES.includes(source) && getAuthenticatedRole(req) !== 'master') return sendJson(res, 403, { error: 'Só o Master vê esses logs.' });
   if (url.pathname === '/api/logs/users') return sendJson(res, 200, await listLogUsers(source));
   const trigger = params.get('trigger') as LogTrigger;
   return sendJson(

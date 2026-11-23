@@ -11,10 +11,13 @@ import type { UserRole, UserSummary } from '../server/auth';
 import type { LogFilters, LogSource, LogTrigger, LogUser, StoredLog } from '../server/logs';
 import type { DemoAccount, DemoAccountEventFilters, DemoAccountEventLog } from '../server/demo-accounts-api';
 import type { DemoAccountEvent } from '../server/demo/schema';
+import type { LoadOverviewPromotion, LoadPreview, LoadTestStatus } from '../server/jmeter';
 
 export type { Atendimento, AtendimentosScanResult } from '../server/atendimentos-scan';
 export type { AtendimentosSummary, Severity } from '../server/atendimentos-summary';
 export type { ManualChecks, ManualCheckState, MechanicsRules, RecurrencesPromotionResult, StoredTestRun, TestRunEvent };
+export type { LoadOverviewPromotion, LoadPreview, LoadProgress, LoadRun, LoadRunStatus, LoadSummary, LoadTestStatus, LoadTransaction } from '../server/jmeter';
+export type { LoadEnv } from './lib/load-test-guard';
 export type { DemoAccount, DemoAccountEvent, DemoAccountEventFilters, DemoAccountEventLog, LearningStatus, LogFilters, LogSource, LogTrigger, LogUser, StoredLog, UserRole, UserSummary };
 
 export interface AtendimentoLabelValue {
@@ -192,7 +195,14 @@ async function* streamNdjson<T>(path: string, data: unknown, fallbackError: stri
   }
 }
 
-const CONNECTION_CLOSED = 'Conexão encerrada sem confirmação do resultado.';
+interface LoadTestRequest {
+  env: 'dev' | 'staging';
+  scenario: string;
+  users: number;
+  durationSec: number;
+}
+
+const CONNECTION_CLOSED ='Conexão encerrada sem confirmação do resultado.';
 
 export const api = {
   listAgencies: () => request<AgencySummary[]>('/agencies'),
@@ -202,17 +212,22 @@ export const api = {
   createPromotion: (data: { name: string; client: string; agencyId: string; agencyName?: string; slug?: string }) => post<PromotionConfig>('/promotions', data),
   saveDev: (
     id: string,
-    data: { backend: string; frontend: string; site?: string; adminPanel?: string } & Omit<CredentialValues, 'testParticipantCpf' | 'testParticipantPassword'>,
+    data: { backend: string; frontend: string; site?: string; adminPanel?: string; apiUrl?: string } & Omit<CredentialValues, 'testParticipantCpf' | 'testParticipantPassword'>,
   ) => put<PromotionConfig>(`/promotions/${id}/dev`, data),
   saveEnvironment: (
     id: string,
     env: 'homolog' | 'producao',
-    data: { site: string; adminPanel: string } & CredentialValues,
+    data: { site: string; adminPanel: string; apiUrl: string } & CredentialValues,
   ) => put<PromotionConfig>(`/promotions/${id}/${env}`, data),
   saveMechanicsRules: (id: string, data: MechanicsRules) => put<PromotionConfig>(`/promotions/${id}/mechanics-rules`, data),
   saveManualTestChecks: (id: string, env: 'homolog' | 'producao', checked: string[]) =>
     put<PromotionConfig>(`/promotions/${id}/manual-tests`, { env, checked }),
   getLastTestRun: (id: string, env: 'dev' | 'homolog' | 'producao') => request<StoredTestRun | null>(`/promotions/${id}/test-run?env=${env}`),
+  getLoadTestsOverview: () => request<LoadOverviewPromotion[]>('/load-tests'),
+  getLoadTests: (id: string) => request<LoadTestStatus>(`/promotions/${id}/load-tests`),
+  previewLoadTest: (id: string, data: LoadTestRequest) => post<LoadPreview>(`/promotions/${id}/load-test-preview`, data),
+  startLoadTest: (id: string, data: LoadTestRequest & { confirm: Pick<LoadPreview, 'siteUrl' | 'apiUrl' | 'users' | 'durationSec'> }) => post<{ runId: string }>(`/promotions/${id}/load-test`, data),
+  cancelLoadTest: (id: string) => post<{ ok: true }>(`/promotions/${id}/load-test-cancel`),
   saveTestRunChecks: (id: string, env: 'dev' | 'homolog' | 'producao', checks: ManualChecks) =>
     put<{ ok: true }>(`/promotions/${id}/test-run-checks`, { env, checks }),
   deletePromotion: (id: string) => del<{ ok: true }>(`/promotions/${id}`),

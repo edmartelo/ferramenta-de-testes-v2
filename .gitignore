@@ -27,3 +27,5 @@ promotions/*/
 promotions/_excluida-*/
 .env.demo
 .env.local
+performance/data/
+performance/results/

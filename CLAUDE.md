@@ -93,6 +93,17 @@ app (`src/main.ts`, `App.vue`, `components/`, `views/`, `composables/`…).
   in `sessionStorage`; the CSP `connect-src` allows `http://127.0.0.1:*`/`http://localhost:*` for this. Setup is a
   5-step wizard (`SonarSetupWizard.vue`); the demo can't run the scanner, it shows the command (no token embedded).
   Never ship our tokens, project keys or local paths in this feature.
+- **JMeter (load tests)**: Master-only screen below "Qualidade de código" (`/carga`, `LoadTestView.vue`,
+  `LoadTestProjectView.vue`, `server/jmeter.ts`). **Never against Production**: `src/lib/load-test-guard.ts` is the single
+  decision point (only `dev`/`staging`; refuses any host that is the production site/panel of *any* promotion; Homolog
+  host must carry a test label like `hmg`; Dev only loopback; API only on the site's host), pinned by
+  `tests/_lib/load-test-guard.spec.ts`. **Never loosen it.** The server re-runs it at preview, start and right before
+  `docker run`; preflight refuses redirects, and plans don't follow them. Limits: up to 50 users, 30–600 s, and more than
+  5 users only after a clean smoke run of the same promotion/env/scenario; the UI confirmation must match what the
+  server computed. Runs `alpine/jmeter:5.6.3` in Docker with `performance/` read-only; plans are global
+  `performance/<scenario>.jmx` listed in `knowledge-base/load-scenarios.ts`, target only via `-J` properties. Shares
+  the job locks with the suite and Recorrências (never concurrent). Metrics per step go to `load_test_runs`; JTL and
+  HTML report stay in `performance/results/<runId>/` on the machine that ran (30 days).
 - **Demo**: `vite.demo.config.ts` (`npm run dev:demo`) swaps `src/api.ts` for `src/demo/api.ts`
   (fictitious data, fake runner in the browser) and the login for `src/demo/DemoLoginView.vue`. Only
   signup/login (`server/demo/accounts.ts`) touch a DB: a separate demo database with a

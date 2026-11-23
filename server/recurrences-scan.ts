@@ -7,7 +7,7 @@ import { rootEnv } from '../src/lib/root-env.ts';
 import { RUN_MARKERS } from '../src/lib/run-markers.ts';
 import { recurrencesMessage, sendWhatsAppMessage } from '../src/lib/whatsapp.ts';
 import type { PromoMonitorConnection } from './connectors-store.ts';
-import { EXCLUSIVE_LOCK, progressMarkerReader, runPlaywrightJob, spawnPlaywrightNdjson, type EndFailure, type JobLock, type PlaywrightNdjsonRun } from './playwright-jobs.ts';
+import { EXCLUSIVE_LOCK, JMETER_LOCK_KEY, progressMarkerReader, runPlaywrightJob, spawnPlaywrightNdjson, type EndFailure, type JobLock, type PlaywrightNdjsonRun } from './playwright-jobs.ts';
 
 export interface RecurrencesPromotionResult {
   name: string;
@@ -43,7 +43,7 @@ function whatsappRecipientJid(): string {
 const RECURRENCES_REFRESH_LOCK: JobLock = {
   key: 'recurrences-refresh',
   busyMessage: 'A contagem de acessos já está sendo atualizada, ou há outra execução em andamento. Aguarde terminar.',
-  conflictsWith: [EXCLUSIVE_LOCK.key],
+  conflictsWith: [EXCLUSIVE_LOCK.key, JMETER_LOCK_KEY],
 };
 
 export interface RecurrencesAccessCount {

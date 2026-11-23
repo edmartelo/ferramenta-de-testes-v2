@@ -40,6 +40,7 @@ const backend = ref('');
 const frontend = ref('');
 const site = ref('');
 const adminPanel = ref('');
+const apiUrl = ref('');
 const adminPanelUser = ref('');
 const adminPanelPassword = ref('');
 const adminPanelTotpSecret = ref('');
@@ -112,6 +113,7 @@ function resetForm(): void {
   frontend.value = '';
   site.value = '';
   adminPanel.value = '';
+  apiUrl.value = '';
   adminPanelUser.value = '';
   adminPanelPassword.value = '';
   adminPanelTotpSecret.value = '';
@@ -154,6 +156,7 @@ watchEffect(async (onCleanup) => {
   frontend.value = promotion.paths.frontend;
   site.value = promotion.environments.site[key] ?? '';
   adminPanel.value = promotion.environments.adminPanel[key] ?? '';
+  apiUrl.value = promotion.environments.api?.[key] ?? '';
   const creds = promotion.credentialValues[key];
   adminPanelUser.value = creds.adminPanelUser ?? '';
   adminPanelPassword.value = creds.adminPanelPassword ?? '';
@@ -219,10 +222,11 @@ function save() {
   const id = props.id;
   return saveWith(async () => {
     await (env === 'dev'
-      ? api.saveDev(id, { backend: backend.value, frontend: frontend.value, site: site.value, adminPanel: adminPanel.value, ...panel })
+      ? api.saveDev(id, { backend: backend.value, frontend: frontend.value, site: site.value, adminPanel: adminPanel.value, apiUrl: apiUrl.value, ...panel })
       : api.saveEnvironment(id, env, {
         site: site.value,
         adminPanel: adminPanel.value,
+        apiUrl: apiUrl.value,
         ...panel,
         testParticipantCpf: testParticipantCpf.value,
         testParticipantPassword: testParticipantPassword.value,
@@ -302,6 +306,18 @@ function save() {
             :aria-describedby="isDev ? `${env}-panel-hint` : undefined"
           />
           <small v-if="isDev" :id="`${env}-panel-hint`" class="field-hint">O servidor local do projeto precisa estar rodando (npm run dev).</small>
+        </div>
+        <div class="field">
+          <label :for="`${env}-api`">URL da API (opcional)</label>
+          <input
+            :id="`${env}-api`"
+            v-model="apiUrl"
+            :disabled="!isEditing"
+            type="url"
+            :placeholder="isDev ? 'http://127.0.0.1:8000' : 'https://hmg.example.com/promo-api'"
+            :aria-describedby="`${env}-api-hint`"
+          />
+          <small :id="`${env}-api-hint`" class="field-hint">Base do back, sem o /api do fim. Vazio: o teste de carga usa a endpoint_uri do site.</small>
         </div>
         <div class="field">
           <label :for="`${env}-user`">Usuário do painel</label>

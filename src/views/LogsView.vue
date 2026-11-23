@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue';
-import { api, type LogFilters, type LogTrigger, type LogUser, type StoredLog } from '../api';
+import { onMounted, reactive, ref, watch } from 'vue';
+import { api, type LogFilters, type LogSource, type LogTrigger, type LogUser, type StoredLog } from '../api';
 import { useAsyncAction } from '../composables/useAsyncAction';
 import { errorMessage } from '../composables/utils';
 import NavIcon from '../components/NavIcon.vue';
@@ -34,7 +34,12 @@ const hasMore = ref(false);
 const form = reactive({ ...EMPTY_FORM });
 const expanded = ref<number>();
 const { pending, error, run } = useAsyncAction();
-const tab = ref<'recorrencias' | 'demo'>('recorrencias');
+const tab = ref<LogSource | 'demo'>('recorrencias');
+const EYEBROWS: Record<LogSource | 'demo', string> = { recorrencias: 'Recorrências', jmeter: 'JMeter', demo: 'Demo' };
+
+function source(): LogSource {
+  return tab.value === 'demo' ? 'recorrencias' : tab.value;
+}
 
 /** `date` vem do input como AAAA-MM-DD; o dia é o do fuso local. */
 function dayStart(date: string, offsetDays = 0): number | undefined {
@@ -58,7 +63,7 @@ function filters(): LogFilters {
 function load(append = false) {
   return run(async () => {
     const before = append ? logs.value.at(-1)?.id : undefined;
-    const page = await api.listLogs('recorrencias', { ...filters(), before });
+    const page = await api.listLogs(source(), { ...filters(), before });
     logs.value = append ? [...logs.value, ...page.logs] : page.logs;
     hasMore.value = page.hasMore;
   });
@@ -77,22 +82,37 @@ function detailValue(value: number | string | boolean): string {
   return typeof value === 'boolean' ? (value ? 'sim' : 'não') : String(value);
 }
 
-onMounted(() => {
-  load();
-  api.listLogUsers('recorrencias').then(
+function loadUsers() {
+  usersError.value = '';
+  api.listLogUsers(source()).then(
     (list) => (users.value = list),
     (e) => (usersError.value = `Lista de usuários não carregou: ${errorMessage(e)}`),
   );
+}
+
+watch(tab, (value) => {
+  if (value === 'demo') return;
+  Object.assign(form, EMPTY_FORM);
+  logs.value = [];
+  expanded.value = undefined;
+  load();
+  loadUsers();
+});
+
+onMounted(() => {
+  load();
+  loadUsers();
 });
 </script>
 
 <template>
   <div>
-    <span class="eyebrow">{{ tab === 'demo' ? 'Demo' : 'Recorrências' }}</span>
+    <span class="eyebrow">{{ EYEBROWS[tab] }}</span>
     <h1>Logs</h1>
 
     <nav v-if="authState.role === 'master'" class="logs-tabs">
       <button type="button" class="logs-tab" :class="{ active: tab === 'recorrencias' }" @click="tab = 'recorrencias'">Logs internos</button>
+      <button type="button" class="logs-tab" :class="{ active: tab === 'jmeter' }" @click="tab = 'jmeter'">JMeter</button>
       <button type="button" class="logs-tab" :class="{ active: tab === 'demo' }" @click="tab = 'demo'">Logs da demo</button>
     </nav>
 

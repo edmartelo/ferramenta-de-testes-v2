@@ -24,6 +24,8 @@ export const router = createRouter({
       component: () => import('./views/SonarProjectView.vue'),
       props: true,
     },
+    { path: '/carga', name: 'load', component: () => import('./views/LoadTestView.vue'), meta: { masterOnly: true } },
+    { path: '/carga/:id', name: 'load-project', component: () => import('./views/LoadTestProjectView.vue'), props: true, meta: { masterOnly: true } },
     { path: '/logs', name: 'logs', component: () => import('./views/LogsView.vue') },
     { path: '/configuracoes/usuarios', name: 'usuarios', component: () => import('./views/UsersView.vue'), meta: { masterOnly: true } },
     { path: '/configuracoes/demo', name: 'demo', component: () => import('./views/DemoAccountsView.vue'), meta: { masterOnly: true } },
