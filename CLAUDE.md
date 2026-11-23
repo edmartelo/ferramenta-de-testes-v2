@@ -104,6 +104,8 @@ app (`src/main.ts`, `App.vue`, `components/`, `views/`, `composables/`…).
   `performance/<scenario>.jmx` listed in `knowledge-base/load-scenarios.ts`, target only via `-J` properties. Shares
   the job locks with the suite and Recorrências (never concurrent). Metrics per step go to `load_test_runs`; JTL and
   HTML report stay in `performance/results/<runId>/` on the machine that ran (30 days).
+  In the demo build the screen is visible to visitors and simulated (`src/demo/load-tests.ts`): the real guard still
+  decides the target, but no request leaves the browser and metrics are fictitious.
 - **Demo**: `vite.demo.config.ts` (`npm run dev:demo`) swaps `src/api.ts` for `src/demo/api.ts`
   (fictitious data, fake runner in the browser) and the login for `src/demo/DemoLoginView.vue`. Only
   signup/login (`server/demo/accounts.ts`) touch a DB: a separate demo database with a

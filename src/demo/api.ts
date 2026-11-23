@@ -3,6 +3,7 @@ import { MASS_REGISTRATION_GROUPS, MASS_REGISTRATION_LIMITS, TEST_GROUPS } from 
 import type { api as realApi, ManualChecks, StoredLog, StoredTestRun } from '../api';
 import { runFakeTests, wait } from './fake-runner';
 import { demoMonday } from './monday-fixtures';
+import { demoLoadCancel, demoLoadOverview, demoLoadPreview, demoLoadStart, demoLoadStatus } from './load-tests';
 import {
   DEMO_AGENCIES,
   demoAtendimentos,
@@ -419,11 +420,14 @@ export const api: Api = {
   }),
   exportLearning: fullVersionOnly,
   importLearning: fullVersionOnly,
-  getLoadTestsOverview: fullVersionOnly,
-  getLoadTests: fullVersionOnly,
-  previewLoadTest: fullVersionOnly,
-  startLoadTest: fullVersionOnly,
-  cancelLoadTest: fullVersionOnly,
+  getLoadTestsOverview: async () => demoLoadOverview(promotions),
+  getLoadTests: async (id) => demoLoadStatus(findPromotion(id)),
+  previewLoadTest: async (id, data) => demoLoadPreview(findPromotion(id), promotions, { ...data }),
+  startLoadTest: async (id, data) => demoLoadStart(findPromotion(id), promotions, { ...data }),
+  cancelLoadTest: async (id) => {
+    demoLoadCancel(id);
+    return { ok: true as const };
+  },
   listLogs: async (_source, filters = {}) => {
     if (filters.before === undefined) refreshLogs();
     const page = filterLogs(filters);

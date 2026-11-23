@@ -15,6 +15,7 @@ import NavIcon from './NavIcon.vue';
 defineProps<{ open: boolean }>();
 defineEmits<{ close: [] }>();
 
+const isDemo = import.meta.env.MODE === 'demo';
 const promotions = ref<PromotionSummary[]>([]);
 const route = useRoute();
 const router = useRouter();
@@ -151,7 +152,7 @@ async function confirmDelete() {
         <li>
           <router-link to="/qualidade-codigo" class="tools-list-item" :aria-current="route.path.startsWith('/qualidade-codigo') ? 'page' : undefined"><NavIcon name="quality" />Qualidade de código</router-link>
         </li>
-        <li v-if="authState.role === 'master'">
+        <li v-if="authState.role === 'master' || isDemo">
           <router-link to="/carga" class="tools-list-item" :aria-current="route.path.startsWith('/carga') ? 'page' : undefined"><NavIcon name="gauge" />JMeter</router-link>
         </li>
       </ul>
