@@ -3,7 +3,7 @@ import { db } from '../src/lib/db.ts';
 import { readJsonFile, writeJsonFile } from '../src/lib/json-file.ts';
 import { PROJECT_ROOT } from '../src/lib/paths.ts';
 import { ensureSharedDbRunning } from './aiven-power.ts';
-import { rememberSummary, summarizeAtendimentos, summaryWhatsAppLines } from './atendimentos-summary.ts';
+import { rememberSummary, summarizeAtendimentos, summaryWhatsAppLines, unloadOllamaModels } from './atendimentos-summary.ts';
 import { runAtendimentosScanJob } from './atendimentos-scan.ts';
 import { getPromoMonitorConnection } from './connectors-store.ts';
 import { durationDetail, promotionsScanDetails, recordLog, type LogDetails } from './logs.ts';
@@ -251,6 +251,7 @@ async function atendimentosSummaryAppendix(
     rememberSummary(await summarizeAtendimentos(target.promotionName, result.atendimentos));
     summarized.push(target.promotionName);
   }
+  if (summarized.length > 0) await unloadOllamaModels();
   const lines = [...summaryWhatsAppLines(summarized), ...(failures.length > 0 ? ['', ...failures] : [])];
   return { lines: lines.length > 0 ? ['', ...lines] : [], panels: targets.length, failedPromotions };
 }

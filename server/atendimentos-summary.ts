@@ -7,6 +7,7 @@ import { rootEnv } from '../src/lib/root-env.ts';
 import {
   classifyAtendimentos,
   clusterSimilar,
+  EMBED_MODEL,
   MIN_LABELS_PER_SEVERITY,
   MIN_LABELS_TO_CLASSIFY,
   MIN_VOTE_SHARE,
@@ -67,6 +68,10 @@ const OLLAMA_MODEL = rootEnv('OLLAMA_MODEL') ?? 'qwen3:14b';
 /** Só CPU: ~3 tokens/s e ~50 tokens por atendimento, então 40+ atendimentos passam de 10 min. */
 const OLLAMA_TIMEOUT_MS = 20 * 60 * 1000;
 const MAX_MESSAGE_CHARS = 1500;
+/** Exemplo só mostra o critério: cortado mais curto, o pior caso (12 exemplos + lote de 10) cabe em OLLAMA_NUM_CTX. */
+const MAX_EXAMPLE_CHARS = 600;
+/** Igual em toda chamada: num_ctx diferente faz o Ollama recarregar o modelo (~1-3 min do HD). Pedidos reais usam ~2,2 mil tokens. */
+const OLLAMA_NUM_CTX = 8192;
 /** Em listas maiores o 14b passa a repetir a mesma gravidade para quase tudo. */
 const BATCH_SIZE = 10;
 
@@ -164,14 +169,14 @@ function progressOf(content: string, total: number): number {
   return Math.min(98, 70 + Math.round((resumos / Math.max(distinct, 1)) * 28));
 }
 
-function formatAtendimento(assunto: string, mensagem: string): string {
-  return `[${assunto}] ${mensagem.slice(0, MAX_MESSAGE_CHARS)}`;
+function formatAtendimento(assunto: string, mensagem: string, maxChars = MAX_MESSAGE_CHARS): string {
+  return `[${assunto}] ${mensagem.slice(0, maxChars)}`;
 }
 
 function examplesPrompt(examples: AtendimentoLabel[]): string {
   if (examples.length === 0) return '';
   const lines = examples.map(
-    (example) => `${formatAtendimento(example.assunto, example.mensagem)}\n=> severity: ${example.severity}${example.tema ? `, tema: ${example.tema}` : ''}`,
+    (example) => `${formatAtendimento(example.assunto, example.mensagem, MAX_EXAMPLE_CHARS)}\n=> severity: ${example.severity}${example.tema ? `, tema: ${example.tema}` : ''}`,
   );
   return `\n\nExemplos já classificados pela equipe. Siga o mesmo critério em casos parecidos:\n\n${lines.join('\n\n')}`;
 }
@@ -225,7 +230,7 @@ async function askOllama(
     model: OLLAMA_MODEL,
     stream: true,
     format: responseSchema(items.map((item) => item.id)),
-    options: { temperature: 0, num_ctx: 16384 },
+    options: { temperature: 0, num_ctx: OLLAMA_NUM_CTX },
     // O qwen3 raciocina antes de responder por padrão: na CPU isso multiplica o tempo sem melhorar a classificação.
     ...(OLLAMA_MODEL.startsWith('qwen3') ? { think: false } : {}),
     messages: [
@@ -307,7 +312,7 @@ async function askSameDoubt(items: Atendimento[]): Promise<string[][]> {
       properties: { grupos: { type: 'array', items: { type: 'array', items: { type: 'string', enum: ids } } } },
       required: ['grupos'],
     },
-    options: { temperature: 0, num_ctx: 8192 },
+    options: { temperature: 0, num_ctx: OLLAMA_NUM_CTX },
     ...(OLLAMA_MODEL.startsWith('qwen3') ? { think: false } : {}),
     messages: [
       {
@@ -544,6 +549,25 @@ function isAwaitingTeam(item: Atendimento): boolean {
 
 /** O Ollama carrega um modelo de ~11 GB e responde um pedido por vez: resumo manual e agendado esperam a vez. Em globalThis pelo restart do Vite. */
 const ollamaQueue: ReturnType<typeof createLimiter> = ((globalThis as unknown as { __ollamaSummaryQueue?: ReturnType<typeof createLimiter> }).__ollamaSummaryQueue ??= createLimiter(1));
+
+/** Fim da consulta agendada: devolve a RAM (~10 GB) na hora em vez de esperar o keep_alive. Na fila, não corta um resumo manual. */
+export function unloadOllamaModels(): Promise<void> {
+  return ollamaQueue.run(async () => {
+    await Promise.all(
+      [
+        ['generate', OLLAMA_MODEL],
+        ['embed', EMBED_MODEL],
+      ].map(([route, model]) =>
+        fetch(`${OLLAMA_URL}/api/${route}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          signal: AbortSignal.timeout(30_000),
+          body: JSON.stringify({ model, keep_alive: 0 }),
+        }).catch(() => {}),
+      ),
+    );
+  });
+}
 
 export function summarizeAtendimentos(
   promotionName: string,

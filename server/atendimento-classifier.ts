@@ -9,7 +9,7 @@ import { maskPersonalData } from './personal-data.ts';
 import type { Atendimento } from './atendimentos-scan.ts';
 
 export const OLLAMA_URL = requireLoopbackUrl(rootEnv('OLLAMA_URL') ?? 'http://127.0.0.1:11434', 'OLLAMA_URL');
-const EMBED_MODEL = rootEnv('OLLAMA_EMBED_MODEL') ?? 'nomic-embed-text';
+export const EMBED_MODEL = rootEnv('OLLAMA_EMBED_MODEL') ?? 'nomic-embed-text';
 const EMBED_TIMEOUT_MS = 5 * 60 * 1000;
 /** Mantém o modelo entre os resumos de um mesmo horário agendado e libera a RAM (~11 GB) até o próximo; recarregar leva ~1 min. */
 export const OLLAMA_KEEP_ALIVE = '15m';
